@@ -16,7 +16,7 @@ corrections/additions folded in here come from `Docs/Plan_Audit_vs_Research.md`.
 | **0b** | Repo baseline — CI, Dependabot, branch protection | 🏗️ | ✅ Done |
 | **0c** | Cross-repo prerequisites (Puzzle Lab rpID, domains, DNS) | 🔀 | ⛔ Blocked |
 | **1** | The hub page — cards, status stamp, `Person` JSON-LD | 🎨 | ✅ Done |
-| **2** | The build log — MDX pipeline, first post | 🎨 | 📋 Planned |
+| **2** | The build log — MDX pipeline, first post | 🎨 | ✅ Done |
 | **3** | Multi-zone migration — `/puzzles` rewrite + 301 | 🔀 | ⛔ Blocked |
 | **4** | SEO surface — sitemap index, robots, schema, IndexNow | 🔎 | 📋 Planned |
 | **5** | zfertig.com integration — `feed.json` | 🔗 | 📋 Planned |
@@ -109,15 +109,23 @@ Done. Delivered:
 
 **Gate met:** the page reads as deliberate with one card; reflow passes 320–1440.
 
-## Phase 2 — The build log (B2) 📋 🎨
+## Phase 2 — The build log (B2) ✅ 🎨
 
-- MDX pipeline, `lib/log.ts` (read + sort, parse thin frontmatter), index + post
-  pages, `generateStaticParams` + `generateMetadata`, per-post
-  `opengraph-image.tsx`.
-- One real post shipped: the KSudoku source-vs-docs discovery.
+Done. Delivered:
 
-**Gate:** the post reads as something a developer would finish; recent posts
-surface on the hub.
+- MDX pipeline via `@next/mdx` + `remark-frontmatter` (string-configured for
+  Turbopack); `.mdx` posts live in `src/content/log`, imported as content, not
+  routed. `mdx-components.tsx` present.
+- `lib/log.ts` reads + sorts posts and parses thin frontmatter (gray-matter);
+  `/log` index + `/log/[slug]` post pages with `generateStaticParams`,
+  `dynamicParams=false`, and `generateMetadata`.
+- `LogCard` component; first real post shipped (`ksudoku-source-vs-docs`);
+  recent posts surface on the hub under "From the lab".
+- Reflow gate extended to `/log` and the post (15/15 across 320–1440).
+
+Per-post `opengraph-image.tsx` intentionally deferred to Phase 4 (SEO surface).
+
+**Gate met:** the post reads as a finished piece; recent posts surface on the hub.
 
 ## Phase 3 — Multi-zone migration (B3) ⛔ 🔀
 

@@ -1,0 +1,56 @@
+---
+title: The docs were wrong about KSudoku's difficulty parameters
+date: 2026-08-04
+summary: I tried to borrow an existing engine's difficulty bands as a shortcut, and the published numbers didn't match the source — which is why Puzzle Lab grades by technique instead.
+project: puzzles
+---
+
+When I started grading puzzles in Puzzle Lab, I wanted a shortcut. Difficulty
+rating is the hard part of a generator — deciding whether a board is "Medium" or
+"Hard" is a judgment call dressed up as a number — and I figured I could borrow
+someone else's judgment. KSudoku is open source, mature, and ships with a
+difficulty model. Why re-derive it?
+
+So I read the documentation, wrote down the difficulty bands, and started
+matching my output to them. The numbers didn't feel right. Puzzles I'd have bet
+money were Hard kept landing a tier lower. I assumed my generator was too
+generous and started tightening it.
+
+That was the mistake: I trusted the prose over the program.
+
+## What the source actually said
+
+When I finally opened the code instead of the docs, the parameters didn't match.
+The documented bands and the values the engine actually used had drifted — the
+kind of gap that opens up when the writing happens once and the code keeps
+moving. I'd been calibrating against a description of an old version of a thing,
+not the thing.
+
+The lesson isn't "KSudoku's docs are bad." It's that **a difficulty number is
+only meaningful next to the algorithm that produced it.** A band labelled "Hard"
+tells you nothing portable unless you also know exactly which solving techniques
+that engine was willing to apply, and in what order. Lift the number out of that
+context and it's decoration.
+
+## Why Puzzle Lab grades by technique
+
+This is what pushed me to stop chasing anyone else's scale. Puzzle Lab rates a
+puzzle by the **hardest logical technique its solver was forced to use** to reach
+a unique solution — naked singles at the easy end, through X-Wing and Y-Wing, up
+to the chain-based methods at the top. The `HumanSolver` doesn't guess; if it
+can't finish a board by deduction, that board doesn't ship. So the difficulty
+label isn't a tuned constant I have to trust — it's a description of the actual
+reasoning the puzzle demands.
+
+That has a property the borrowed bands never could: it's honest by construction.
+"Expert" means "you will need this specific technique," not "this scored 7.4 on a
+scale I can't see." And when I change the solver, the grades change with it,
+automatically, because they were never separate from it.
+
+## The takeaway I keep reusing
+
+Read the source, not the summary — especially for anything you're about to build
+a calibration on top of. Documentation describes intent; code describes
+behaviour; and when they disagree, behaviour wins every time. I lost a couple of
+days tightening a generator that was already correct. I'd rather lose an hour
+reading a diff.

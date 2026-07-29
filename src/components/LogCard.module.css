@@ -1,0 +1,50 @@
+.card {
+  display: block;
+  padding: 1rem 1.15rem;
+  background: var(--paper-2);
+  border: 2px solid var(--ink);
+  border-radius: var(--r-md);
+  text-decoration: none;
+  color: inherit;
+  transition:
+    transform 120ms ease-out,
+    background 120ms ease-out;
+}
+
+.card:hover {
+  transform: translate(-1px, -1px);
+}
+
+.card:hover .title {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.date {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.75rem;
+  color: var(--ink-soft);
+}
+
+.title {
+  margin-top: 0.35rem;
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 1.2rem;
+  line-height: 1.25;
+  color: var(--grape);
+}
+
+.summary {
+  margin-top: 0.4rem;
+  font-size: 0.95rem;
+  color: var(--ink-soft);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card:hover {
+    transition: none;
+    transform: none;
+  }
+}
