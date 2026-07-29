@@ -1,56 +1,64 @@
 ---
-title: The docs were wrong about KSudoku's difficulty parameters
+title: KSudoku exposes two difficulty knobs — one of them does nothing
 date: 2026-08-04
-summary: I tried to borrow an existing engine's difficulty bands as a shortcut, and the published numbers didn't match the source — which is why Puzzle Lab grades by technique instead.
+summary: Building Killer Sudoku generation, I reached for KSudoku's cage difficulty parameters and found one of the two was dead code — which is why Puzzle Lab grades by technique instead of by a knob.
 project: puzzles
 ---
 
-When I started grading puzzles in Puzzle Lab, I wanted a shortcut. Difficulty
-rating is the hard part of a generator — deciding whether a board is "Medium" or
-"Hard" is a judgment call dressed up as a number — and I figured I could borrow
-someone else's judgment. KSudoku is open source, mature, and ships with a
-difficulty model. Why re-derive it?
+When I started on Killer Sudoku for Puzzle Lab, I did the sensible thing and read
+the reference implementation first. KDE's **KSudoku** is the best-documented
+open-source generator for this exact pipeline: generate a solved grid, grow
+connected cages with a randomized flood-fill, then verify a unique solution with
+Dancing Links. If I was going to build a cage generator, I wanted to see how a
+mature one exposed **difficulty**.
 
-So I read the documentation, wrote down the difficulty bands, and started
-matching my output to them. The numbers didn't feel right. Puzzles I'd have bet
-money were Hard kept landing a tier lower. I assumed my generator was too
-generous and started tightening it.
+Its cage generator header offers two knobs: `maxSize`, the largest number of
+cells a cage can have, and `maxValue`, the largest allowed cage total. Two dials
+for difficulty. Reasonable — bigger cages mean fewer combination constraints,
+and capping the sum should shape the puzzle too.
 
-That was the mistake: I trusted the prose over the program.
+So I wired up both and started turning them.
 
-## What the source actually said
+## One of the dials wasn't connected
 
-When I finally opened the code instead of the docs, the parameters didn't match.
-The documented bands and the values the engine actually used had drifted — the
-kind of gap that opens up when the writing happens once and the code keeps
-moving. I'd been calibrating against a description of an old version of a thing,
-not the thing.
+`maxSize` did what it said. `maxValue` did nothing. I'd change it, regenerate,
+and the output distribution wouldn't move at all. When I stopped trusting the
+interface and read the generator body, there it was: `maxValue` is accepted and
+then never actually used. It's a knob bolted to the dashboard with no cable
+behind it.
 
-The lesson isn't "KSudoku's docs are bad." It's that **a difficulty number is
-only meaningful next to the algorithm that produced it.** A band labelled "Hard"
-tells you nothing portable unless you also know exactly which solving techniques
-that engine was willing to apply, and in what order. Lift the number out of that
-context and it's decoration.
+This is the trap with reading an API instead of an implementation. A parameter
+that exists, has a sensible name, and compiles looks exactly like a parameter
+that works. The only way to tell them apart is to follow the value into the code
+and check that something reads it.
 
-## Why Puzzle Lab grades by technique
+## Difficulty was never going to be one dial anyway
 
-This is what pushed me to stop chasing anyone else's scale. Puzzle Lab rates a
-puzzle by the **hardest logical technique its solver was forced to use** to reach
-a unique solution — naked singles at the easy end, through X-Wing and Y-Wing, up
-to the chain-based methods at the top. The `HumanSolver` doesn't guess; if it
-can't finish a board by deduction, that board doesn't ship. So the difficulty
-label isn't a tuned constant I have to trust — it's a description of the actual
-reasoning the puzzle demands.
+The deeper lesson is that cage difficulty doesn't live in one or two scalars. The
+levers that actually move it are structural:
 
-That has a property the borrowed bands never could: it's honest by construction.
-"Expert" means "you will need this specific technique," not "this scored 7.4 on a
-scale I can't see." And when I change the solver, the grades change with it,
-automatically, because they were never separate from it.
+- how many **single-cell cages** there are (they're givens in disguise — many is
+  easy, zero is hard),
+- the **average cage size**,
+- how many cages have only one valid combination (a 3-in-2 is always `{1,2}` — a
+  free foothold), and
+- whether cages **line up** with rows, columns, and boxes or deliberately cross
+  them (alignment creates easy Innies/Outies).
 
-## The takeaway I keep reusing
+No single `maxValue` captures that. Which is the whole reason Puzzle Lab doesn't
+grade with generator parameters at all: it grades by **the hardest technique its
+`HumanSolver` was forced to use** to reach the unique solution. The difficulty
+label isn't a dial I set — it's a description of the reasoning the finished
+puzzle actually demands.
 
-Read the source, not the summary — especially for anything you're about to build
-a calibration on top of. Documentation describes intent; code describes
-behaviour; and when they disagree, behaviour wins every time. I lost a couple of
-days tightening a generator that was already correct. I'd rather lose an hour
-reading a diff.
+## What I took from it
+
+Someone who has built one of these put it well: the solver is a couple of weeks
+of work, and the **grader** — the thing that emulates human technique to rate a
+board — is the better part of a year. Difficulty is the hard part, and it resists
+being compressed into a knob.
+
+So: read the implementation, not the interface, before you build a calibration on
+top of it. An exposed parameter is a claim, not a guarantee. I'd rather spend an
+hour confirming a value is actually read than a day tuning a dial that was never
+wired in.

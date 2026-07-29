@@ -18,7 +18,7 @@ corrections/additions folded in here come from `Docs/Plan_Audit_vs_Research.md`.
 | **1** | The hub page — cards, status stamp, `Person` JSON-LD | 🎨 | ✅ Done |
 | **2** | The build log — MDX pipeline, first post | 🎨 | ✅ Done |
 | **3** | Multi-zone migration — `/puzzles` rewrite + 301 | 🔀 | ⛔ Blocked |
-| **4** | SEO surface — sitemap index, robots, schema, IndexNow | 🔎 | 📋 Planned |
+| **4** | SEO surface — sitemap, robots, schema, OG images | 🔎 | 🚧 In progress |
 | **5** | zfertig.com integration — `feed.json` | 🔗 | 📋 Planned |
 
 > Phase 3 is blocked on 0c (the WebAuthn rpID move must land first, or every
@@ -143,22 +143,33 @@ The genuinely fiddly part — read hub plan Part 7 in full first. Blocked on 0c.
 assets + auth intact, `puzzles.biscuitlab.net` 301s without looping, and a
 passkey registered before the move still works.
 
-## Phase 4 — SEO surface (B4) 📋 🔎
+## Phase 4 — SEO surface (B4) 🚧 🔎
 
-- **Hand-rolled sitemap index** as a `route.ts` handler (audit C4 — Next.js
-  won't generate the index for you); only `<lastmod>` matters.
-- `robots.ts` with an **explicit AI-crawler decision** (audit A4): allow
-  citation bots (`PerplexityBot`, `ChatGPT-User`, `Claude-User`); training
-  crawlers are a values choice.
-- Full JSON-LD set (audit A5): `Organization`/`WebSite`+`SearchAction`/`Person`
-  on root, `BreadcrumbList` everywhere, `Article` on posts. No FAQ/HowTo for SERP.
-- OG images; **IndexNow** (audit A3); publish indexable pages gradually (A7).
-- Search Console + Bing on the apex; `metadataBase` points at `biscuitlab.net`,
-  not the pre-decision hostname (audit C5).
-- `llms.txt`: **decided against** for now (audit A8) — revisit in 6–12 months.
+**Done in-repo:**
 
-**Gate:** sitemap index validates, both properties verified, origin host returns
-`noindex`, JSON-LD passes the Rich Results Test.
+- `app/sitemap.ts` — hub URLs with `<lastmod>` only (Google ignores
+  priority/changefreq).
+- `app/robots.ts` — **explicit AI-crawler decision** (audit A4): citation bots
+  (`PerplexityBot`, `ChatGPT-User`, `Claude-User`) allowed; training crawlers
+  left allowed with a one-line flip documented.
+- JSON-LD (audit A5): `Organization`/`WebSite`/`Person` site graph (from Phase 1),
+  plus `BreadcrumbList` on `/log` and posts and `Article` on posts. No FAQ/HowTo.
+- OG images: root `opengraph-image.tsx` + prerendered per-post
+  `log/[slug]/opengraph-image.tsx`.
+- `metadataBase` = `biscuitlab.net` (audit C5, set in Phase 1).
+- `llms.txt`: **decided against** (audit A8) — revisit in 6–12 months.
+
+**Deferred (need a live domain / migration / account access):**
+
+- **Hand-rolled sitemap index** referencing the puzzle zone — waits on Phase 3
+  (there's no `/puzzles/sitemap.xml` until migration; audit C4).
+- **IndexNow** (audit A3) — needs the live apex + Bing.
+- **Search Console + Bing verification** on the apex — account actions (part of
+  0c); origin-host `noindex` is set during Phase 3.
+
+**Gate (partial):** JSON-LD is emitted server-side and ready for the Rich Results
+Test; the full gate (both properties verified, index validates, origin noindex)
+completes alongside Phase 3 and the 0c account setup.
 
 ## Phase 5 — zfertig.com integration (B5) 📋 🔗
 

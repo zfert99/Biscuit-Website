@@ -2,6 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import { getAllPosts, getPost, formatPostDate } from "@/lib/log";
+import { JsonLd } from "@/components/JsonLd";
+import { articleJsonLd, breadcrumbJsonLd } from "@/lib/site";
 import styles from "./page.module.css";
 
 export function generateStaticParams() {
@@ -45,6 +47,21 @@ export default async function LogPostPage({
 
   return (
     <main id="main" className={styles.wrap}>
+      <JsonLd
+        data={breadcrumbJsonLd([
+          { name: "Biscuit Lab", path: "/" },
+          { name: "Build log", path: "/log" },
+          { name: post.title, path: `/log/${post.slug}` },
+        ])}
+      />
+      <JsonLd
+        data={articleJsonLd({
+          title: post.title,
+          description: post.summary,
+          date: post.date,
+          slug: post.slug,
+        })}
+      />
       <article>
         <header className={styles.header}>
           <p className={styles.meta}>
