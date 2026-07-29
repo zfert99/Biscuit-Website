@@ -137,9 +137,11 @@ subdomain at something you don't control.
 Assuming rpID is already fixed:
 
 - [ ] `basePath: '/puzzles'` in the puzzle app's `next.config`
-- [ ] `assetPrefix` set so `/_next` assets don't collide between zones
+- [ ] No `assetPrefix` needed — `basePath` auto-scopes `/_next/*` in Next 15+
+      (corrected; see `Docs/research/multi-zone-migration-validation.md` §2a)
 - [ ] Rewrite from the hub app to the puzzle deployment (multi-zone pattern)
-- [ ] Session cookies re-scoped — everyone logs in once more; passkeys unaffected
+- [ ] Cookies stay host-only — same apex host after cutover, so no re-scoping and
+      no `.biscuitlab.net` domain (validation doc §3); passkeys unaffected
 - [ ] 301 `puzzles.biscuitlab.net/*` → `biscuitlab.net/puzzles/*`, kept forever
 - [ ] Audit absolute URLs: `metadataBase`, canonicals, OG image URLs, any links
       in transactional email

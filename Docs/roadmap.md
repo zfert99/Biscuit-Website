@@ -137,7 +137,10 @@ Per-post `opengraph-image.tsx` intentionally deferred to Phase 4 (SEO surface).
 The genuinely fiddly part — read hub plan Part 7 in full first. Blocked on 0c.
 **Groundwork drafted:** `Docs/multi-zone-migration-runbook.md` (cross-repo
 sequence + your blocker steps) and, in the Puzzle-Generator repo,
-`Docs/multi-zone-migration-plan.md` (the rpID/basePath code diffs).
+`Docs/multi-zone-migration-plan.md` (the rpID/basePath code diffs). **Both were
+audited against `Docs/research/multi-zone-migration-validation.md`** — which killed
+the Host-based origin `noindex` (self-defeating), the `.biscuitlab.net` cookie
+(unnecessary/risky), and confirmed the rpID/basePath/301 core. Read it first.
 
 - `basePath: '/puzzles'` on Puzzle Lab; rewrite target is a **distinct origin
   hostname** (not `puzzles.biscuitlab.net`, or you get a redirect loop).
