@@ -13,7 +13,7 @@ corrections/additions folded in here come from `Docs/Plan_Audit_vs_Research.md`.
 | :---: | --- | :---: | :---: |
 | **D** | Docs & planning — hub plan, design system, research corpus, this roadmap | 🏗️ | ✅ Done |
 | **0a** | Reset the arcade scaffold to the hub | 🏗️ | ✅ Done |
-| **0b** | Repo baseline — CI, Dependabot (branch protection pending) | 🏗️ | 🚧 In progress |
+| **0b** | Repo baseline — CI, Dependabot, branch protection | 🏗️ | ✅ Done |
 | **0c** | Cross-repo prerequisites (Puzzle Lab rpID, domains, DNS) | 🔀 | ⛔ Blocked |
 | **1** | The hub page — cards, status stamp, `Person` JSON-LD | 🎨 | 📋 Planned |
 | **2** | The build log — MDX pipeline, first post | 🎨 | 📋 Planned |
@@ -66,11 +66,12 @@ From the multi-repo research (`git-github-best-practices-solo-multi-repo.md`):
   `npm audit --omit=dev` production-dependency gate. ✅ *(`.github/workflows/ci.yml`.)*
 - **Dependabot** for npm + github-actions. ✅ *(`.github/dependabot.yml`.)*
 - `.env*` gitignored. ✅ *(commit `.env.example` when the first env var appears.)*
-- **Branch protection with the solo-dev gotcha:** require status checks +
-  linear history; leave "require approvals" **off** (GitHub blocks approving
-  your own PR). ⛔ *(GitHub UI — pending.)*
-- **Secret scanning with push protection.** ⛔ *(GitHub UI — pending.)*
-- **Squash-only merge** as the only merge button. ⛔ *(GitHub UI — pending.)*
+- **Branch protection with the solo-dev gotcha:** require the `verify` status
+  check (strict) + linear history + a PR with **0 approvals** (GitHub blocks
+  approving your own PR); `enforce_admins` off as a solo escape hatch. ✅
+- **Secret scanning with push protection.** ✅ *(public repo — free.)*
+- **Squash-only merge** as the only merge button, squash title = PR title,
+  auto-delete branch on merge. ✅
 
 ### 0c — Cross-repo prerequisites ⛔
 
