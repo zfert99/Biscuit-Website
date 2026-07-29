@@ -54,3 +54,39 @@ export function siteJsonLd() {
   };
 }
 
+/** BreadcrumbList — still produces rich results (audit A5). */
+export function breadcrumbJsonLd(items: { name: string; path: string }[]) {
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: `${site.url}${item.path}`,
+    })),
+  };
+}
+
+/** Article for a log post, with the real author entity (E-E-A-T; audit A5). */
+export function articleJsonLd(post: {
+  title: string;
+  description: string;
+  date: string;
+  slug: string;
+}) {
+  const url = `${site.url}/log/${post.slug}`;
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: post.title,
+    description: post.description,
+    datePublished: post.date,
+    dateModified: post.date,
+    author: { "@id": `${site.author.url}#person` },
+    publisher: { "@id": `${site.url}#org` },
+    mainEntityOfPage: url,
+    url,
+  };
+}
+
