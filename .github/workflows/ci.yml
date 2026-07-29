@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Gate on production-dependency vulnerabilities; dev-tooling advisories
+      # (e.g. an ESLint-only transitive) are surfaced by Dependabot instead of
+      # blocking CI. See AGENTS.md — Security & Infrastructure.
+      - name: Audit production dependencies
+        run: npm audit --omit=dev --audit-level=high
+
+      # Build first so .next/types exists for typecheck and the reflow test
+      # has a production server to run against.
+      - name: Build
+        run: npm run build
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint (incl. jsx-a11y)
+        run: npm run lint
+
+      - name: Install Playwright browser
+        run: npx playwright install --with-deps chromium
+
+      - name: Reflow / a11y overflow gate
+        run: npm run test:e2e
