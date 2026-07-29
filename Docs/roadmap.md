@@ -19,7 +19,7 @@ corrections/additions folded in here come from `Docs/Plan_Audit_vs_Research.md`.
 | **2** | The build log — MDX pipeline, first post | 🎨 | ✅ Done |
 | **3** | Multi-zone migration — `/puzzles` rewrite + 301 | 🔀 | ⛔ Blocked |
 | **4** | SEO surface — sitemap, robots, schema, OG images | 🔎 | 🚧 In progress |
-| **5** | zfertig.com integration — `feed.json` | 🔗 | 📋 Planned |
+| **5** | zfertig.com integration — `feed.json` | 🔗 | ✅ Done |
 
 > Phase 3 is blocked on 0c (the WebAuthn rpID move must land first, or every
 > registered passkey dies at cutover). Phase 0c items live mostly in *other*
@@ -171,13 +171,20 @@ passkey registered before the move still works.
 Test; the full gate (both properties verified, index validates, origin noindex)
 completes alongside Phase 3 and the 0c account setup.
 
-## Phase 5 — zfertig.com integration (B5) 📋 🔗
+## Phase 5 — zfertig.com integration (B5) ✅ 🔗
 
-- `app/feed.json/route.ts` (`force-static`, daily revalidate) returns the three
-  most recent posts; zfertig.com consumes it for the "From the lab" strip.
+Done (hub side). Delivered:
 
-**Gate:** zfertig.com builds against the live feed and degrades gracefully — a
-failed fetch hides the strip, it does not fail the build.
+- `app/feed.json/route.ts` — `force-static`, daily `revalidate`, `nodejs`
+  runtime, permissive CORS. Returns the three most recent posts
+  (`title`/`summary`/`date`/absolute `url`).
+- Fixed a latent bug it surfaced: YAML auto-parses an unquoted `date:` into a
+  Date, so `lib/log.ts` now normalizes dates to `yyyy-mm-dd` — keeping
+  `feed.json` and every `<time dateTime>` clean.
+
+**Gate (hub side met):** the feed is live and static. The graceful-degradation
+half lives in the zfertig.com repo (consume at build time; a failed fetch hides
+the strip, it doesn't fail the build).
 
 ---
 
