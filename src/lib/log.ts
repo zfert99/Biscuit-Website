@@ -31,11 +31,27 @@ function slugsFromDisk(): string[] {
     .map((file) => file.replace(/\.mdx$/, ""));
 }
 
+/**
+ * Normalize a frontmatter date to `yyyy-mm-dd`. YAML auto-parses an unquoted
+ * `date: 2026-08-04` into a Date object, so coerce it back to a plain string —
+ * otherwise it leaks as a full ISO datetime into JSON and `<time dateTime>`.
+ */
+function normalizeDate(value: unknown): string {
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  return String(value);
+}
+
 function readFrontmatter(slug: string): LogPost | null {
   const file = path.join(LOG_DIR, `${slug}.mdx`);
   if (!fs.existsSync(file)) return null;
   const { data } = matter(fs.readFileSync(file, "utf8"));
-  return { slug, ...(data as LogFrontmatter) };
+  return {
+    slug,
+    title: String(data.title),
+    date: normalizeDate(data.date),
+    summary: String(data.summary),
+    project: data.project ? String(data.project) : undefined,
+  };
 }
 
 /** Newest first. */
