@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
-import { Fredoka, Manrope, Space_Mono } from "next/font/google";
+import { Fredoka, Manrope, Space_Mono, Permanent_Marker } from "next/font/google";
 import "./globals.css";
+import { SiteHeader } from "@/components/SiteHeader";
+import { SiteFooter } from "@/components/SiteFooter";
+import { JsonLd } from "@/components/JsonLd";
+import { site, siteJsonLd } from "@/lib/site";
 
 // Self-hosted via next/font — no external requests, no layout shift.
 // See Docs/design/design-system.md §2.
@@ -24,13 +28,29 @@ const spaceMono = Space_Mono({
   display: "swap",
 });
 
+// The one handwritten face — used only for the single header aside.
+const permanentMarker = Permanent_Marker({
+  weight: "400",
+  subsets: ["latin"],
+  variable: "--font-hand",
+  display: "swap",
+});
+
 export const metadata: Metadata = {
-  metadataBase: new URL("https://biscuitlab.net"),
+  metadataBase: new URL(site.url),
   title: {
-    default: "Biscuit Lab",
-    template: "%s · Biscuit Lab",
+    default: site.name,
+    template: `%s · ${site.name}`,
   },
-  description: "A small lab: the projects, and the build log behind them.",
+  description: site.description,
+  openGraph: {
+    type: "website",
+    siteName: site.name,
+    url: site.url,
+    title: site.name,
+    description: site.description,
+    locale: "en_US",
+  },
 };
 
 export default function RootLayout({
@@ -39,9 +59,17 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${fredoka.variable} ${manrope.variable} ${spaceMono.variable}`}
+      className={`${fredoka.variable} ${manrope.variable} ${spaceMono.variable} ${permanentMarker.variable}`}
     >
-      <body>{children}</body>
+      <body>
+        <a href="#main" className="skip-link">
+          Skip to content
+        </a>
+        <JsonLd data={siteJsonLd()} />
+        <SiteHeader />
+        {children}
+        <SiteFooter />
+      </body>
     </html>
   );
 }

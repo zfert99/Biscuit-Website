@@ -1,0 +1,12 @@
+.footer {
+  max-width: 62rem;
+  margin-inline: auto;
+  padding: 2.5rem 1.25rem 3rem;
+  font-size: 0.9rem;
+  color: var(--ink-soft);
+}
+
+.link {
+  color: var(--grape);
+  text-underline-offset: 3px;
+}
