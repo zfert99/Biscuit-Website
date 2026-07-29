@@ -106,11 +106,33 @@ on URLs.
 |---|---|---|---|
 | **Small** | `biscuitlab.net/thing` | a route inside the hub repo | a toy, a demo, one weekend |
 | **Large** | `biscuitlab.net/thing` | own repo, own Vercel project, mounted via `basePath` + rewrite | own database, own auth, ongoing work |
-| **Product** | `itsownname.com` | own everything; 301 from the Biscuit Lab path | it has outgrown being "one of Zack's projects" |
+| **Product** | `itsownname.com` | own everything; 301 from the Biscuit Lab path | a *concrete* trigger — see below |
 
 Puzzle Lab is **Large**. It gets its own repo and deployment and lives at
 `/puzzles`. If it ever earns Product tier, the answer is `puzzlelab.com` — not a
 subdomain, which would be a lateral move.
+
+**Graduation is gated on a concrete trigger, not ambition** (validated:
+`Docs/research/solo-dev-brand-architecture.md`). The old "it has outgrown being
+one of Zack's projects" is too vague to act on. Graduate a project to its own
+domain only when it: **ships to an app store**, **gets its own paid
+marketing/audience**, **needs a separable auth or legal/company entity**, or **is
+being spun out**. Absent one of those, keep it on the path even when it's large —
+a domain move reliably costs link equity and adds redirect/renewal/monitoring
+overhead (the WooCommerce → Woo.com rebrand lost roughly three-quarters of daily
+traffic and was reverted within months).
+
+**Two guardrails from the same research:**
+
+- The top failure mode for a solo dev's second site is that it goes stale and
+  reads as abandonment. Keep Biscuit Lab deliberately minimal and never host
+  hiring-critical content here — that belongs on zfertig.com. (This is already
+  the hub plan's Part 1 stance; the research confirms it.)
+- If running both `/writing` and `/log` makes either go 3+ months stale, collapse
+  the log into a tagged section of the single zfertig.com blog and cross-link.
+  Keep one subscription endpoint, on zfertig.com.
+- Make the parent/child relationship explicit in copy ("Puzzle Lab, a project
+  from Biscuit Lab") rather than trusting the shared "Lab" naming to convey it.
 
 ## The gating constraint: WebAuthn rpID
 

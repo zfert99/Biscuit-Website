@@ -188,6 +188,13 @@ narrative or too small to teach from, it stays on the log and never crosses.
 
 One canonical per piece, no duplicate content, and nothing gets written twice.
 
+> **Validated** by `Docs/research/solo-dev-brand-architecture.md`: teaching
+> pieces belong on `zfertig.com/writing` (the hiring evidence), the log stays a
+> genuinely different genre (short, dated, process notes), and anything that
+> doubles as teaching is `rel=canonical` to zfertig.com. The research's one
+> caution: if two publishing surfaces prove hard to feed, collapse to a single
+> tagged blog on zfertig.com rather than let either rot.
+
 Current allocation of the material already in hand:
 
 | Topic | Goes to |
