@@ -6,7 +6,7 @@ import { test, expect } from "@playwright/test";
  * merge. See AGENTS.md — Accessibility & Performance Floor.
  */
 const WIDTHS = [320, 375, 768, 1024, 1440];
-const PATHS = ["/"];
+const PATHS = ["/", "/log", "/log/ksudoku-source-vs-docs"];
 
 for (const path of PATHS) {
   for (const width of WIDTHS) {

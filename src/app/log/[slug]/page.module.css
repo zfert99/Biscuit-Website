@@ -1,0 +1,81 @@
+.wrap {
+  max-width: 44rem;
+  margin-inline: auto;
+  padding: 1.5rem 1.25rem 2rem;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.5rem 0 1.75rem;
+  border-bottom: 2px solid var(--ink-soft);
+  margin-bottom: 2rem;
+}
+
+.meta {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.8rem;
+  color: var(--ink-soft);
+}
+
+.back {
+  color: var(--grape);
+}
+
+.title {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: clamp(1.9rem, 5.5vw, 2.6rem);
+  line-height: 1.1;
+}
+
+.summary {
+  font-size: 1.15rem;
+  color: var(--ink-soft);
+}
+
+/* Prose — element selectors here target the MDX-rendered HTML. */
+.prose {
+  font-size: 1.05rem;
+  line-height: 1.7;
+}
+
+.prose h2 {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 1.4rem;
+  line-height: 1.25;
+  margin-top: 2.25rem;
+}
+
+.prose p {
+  margin-top: 1rem;
+}
+
+.prose ul {
+  margin: 1rem 0;
+  padding-left: 1.25rem;
+  list-style: disc;
+}
+
+.prose li {
+  margin-top: 0.4rem;
+}
+
+.prose a {
+  color: var(--grape);
+  text-underline-offset: 3px;
+}
+
+.prose strong {
+  font-weight: 700;
+}
+
+.prose code {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-size: 0.9em;
+  background: var(--paper-2);
+  padding: 0.1em 0.35em;
+  border-radius: var(--r-sm);
+}
