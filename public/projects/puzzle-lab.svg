@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="Puzzle Lab">
+  <rect width="640" height="400" fill="#5A3E96"/>
+  <g fill="#F5E7C8" stroke="#2B1B12" stroke-width="3">
+    <rect x="202" y="82"  width="72" height="72" rx="8"/>
+    <rect x="284" y="82"  width="72" height="72" rx="8"/>
+    <rect x="366" y="82"  width="72" height="72" rx="8"/>
+    <rect x="202" y="164" width="72" height="72" rx="8"/>
+    <rect x="284" y="164" width="72" height="72" rx="8" fill="#E8A33D"/>
+    <rect x="366" y="164" width="72" height="72" rx="8"/>
+    <rect x="202" y="246" width="72" height="72" rx="8"/>
+    <rect x="284" y="246" width="72" height="72" rx="8"/>
+    <rect x="366" y="246" width="72" height="72" rx="8"/>
+  </g>
+  <g fill="#2B1B12" font-family="'Space Mono', ui-monospace, monospace" font-size="34" font-weight="700" text-anchor="middle">
+    <text x="238" y="130">5</text>
+    <text x="402" y="130">1</text>
+    <text x="320" y="212">3</text>
+    <text x="238" y="294">7</text>
+    <text x="402" y="294">8</text>
+  </g>
+</svg>

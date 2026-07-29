@@ -15,7 +15,7 @@ corrections/additions folded in here come from `Docs/Plan_Audit_vs_Research.md`.
 | **0a** | Reset the arcade scaffold to the hub | 🏗️ | ✅ Done |
 | **0b** | Repo baseline — CI, Dependabot, branch protection | 🏗️ | ✅ Done |
 | **0c** | Cross-repo prerequisites (Puzzle Lab rpID, domains, DNS) | 🔀 | ⛔ Blocked |
-| **1** | The hub page — cards, status stamp, `Person` JSON-LD | 🎨 | 📋 Planned |
+| **1** | The hub page — cards, status stamp, `Person` JSON-LD | 🎨 | ✅ Done |
 | **2** | The build log — MDX pipeline, first post | 🎨 | 📋 Planned |
 | **3** | Multi-zone migration — `/puzzles` rewrite + 301 | 🔀 | ⛔ Blocked |
 | **4** | SEO surface — sitemap index, robots, schema, IndexNow | 🔎 | 📋 Planned |
@@ -90,20 +90,24 @@ CI passes on a throwaway PR and branch protection actually blocks a failing one.
 
 ---
 
-## Phase 1 — The hub page (B1) 📋 🎨
+## Phase 1 — The hub page (B1) ✅ 🎨
 
-- Root layout; `SiteHeader` (wordmark + the one handwritten aside); `SiteFooter`
-  ("built by Zack Fertig" → zfertig.com).
-- `content/projects.ts` (typed array, not MDX) with the Puzzle Lab entry and its
-  `contains` list.
-- `ProjectCard` + `StatusStamp` — the status stamp is the single rotated
-  element. **Write the contrast check into its spec** (audit C3): the words
-  `LIVE`/`IN THE LAB`/`SHELVED` are load-bearing (SC 1.4.1), and border/fill need
-  3:1 non-text contrast against the card (SC 1.4.11).
-- Metadata + `Person`/`Organization`/`WebSite` JSON-LD.
+Done. Delivered:
 
-**Gate:** the page looks deliberate with exactly one card on it. If it looks
-empty, fix the card treatment — never add fake projects.
+- Root layout with `SiteHeader` (wordmark + the one handwritten aside, in
+  Permanent Marker) and `SiteFooter` ("built by Zack Fertig" → zfertig.com);
+  skip link for keyboard users.
+- `content/projects.ts` (typed array) with the Puzzle Lab entry + `contains`
+  list. (`href` is the current subdomain; becomes `/puzzles` after Phase 3.)
+- `ProjectCard` + `StatusStamp` as colocated CSS-module components. The stamp is
+  the single rotated element; the status **word** is load-bearing (SC 1.4.1) and
+  the themed `--ink` border keeps 3:1 non-text contrast in both themes
+  (SC 1.4.11) — audit C3 baked in.
+- Site-wide `Person`/`Organization`/`WebSite` JSON-LD, server-rendered, with the
+  reciprocal `sameAs` for the entity graph.
+- On-brand placeholder thumbnail; real screenshots (via `next/image`) later.
+
+**Gate met:** the page reads as deliberate with one card; reflow passes 320–1440.
 
 ## Phase 2 — The build log (B2) 📋 🎨
 
