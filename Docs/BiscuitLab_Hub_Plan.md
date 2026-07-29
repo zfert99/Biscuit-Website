@@ -302,8 +302,9 @@ Puzzle Lab:
 // next.config.mjs
 export default {
   basePath: '/puzzles',
-  // basePath already scopes /_next assets; only set assetPrefix if serving
-  // static assets from a separate origin. Verify against current Next docs.
+  // basePath auto-scopes /_next/* in Next 15+ — no assetPrefix needed for the
+  // child; the single /puzzles/:path* rewrite covers assets. (Validated:
+  // Docs/research/multi-zone-migration-validation.md §2a.)
 }
 ```
 
@@ -326,21 +327,40 @@ Both entries are needed — the bare path does not always match `:path*`.
 
 ## Checklist
 
+Validated and corrected against
+`Docs/research/multi-zone-migration-validation.md` — read it before executing.
+The self-defeating Host-based `noindex` and the `.biscuitlab.net` cookie from an
+earlier draft are removed below.
+
 - [ ] rpID confirmed on the apex, fresh passkey round-trip tested
 - [ ] `basePath: '/puzzles'` set; app boots locally at `/puzzles`
-- [ ] Origin hostname distinct from `puzzles.biscuitlab.net`
+      (basePath auto-scopes `/_next/*` in Next 15+ — no `assetPrefix`)
+- [ ] `serverActions.allowedOrigins: ['biscuitlab.net']` on the puzzle app
+- [ ] Rewrite target is a host distinct from `puzzles.biscuitlab.net` — the
+      deployment's own `*.vercel.app` URL suffices; a dedicated
+      `origin-puzzles.biscuitlab.net` is unnecessary extra surface
 - [ ] Rewrites live; `/puzzles/_next/*` assets resolve
-- [ ] Session cookie domain set to `.biscuitlab.net`, or accept one forced
-      re-login (passkeys unaffected either way)
-- [ ] `metadataBase` on the puzzle app set to `https://biscuitlab.net` so
-      canonicals and OG URLs point at the public hostname, not the origin
-- [ ] `X-Robots-Tag: noindex` on the origin hostname via middleware checking the
-      `Host` header, so the origin never gets indexed alongside the real URLs
-- [ ] `puzzles.biscuitlab.net/*` → `biscuitlab.net/puzzles/*`, 301, permanent
-- [ ] Absolute URLs audited: OG images, canonicals, transactional email, any
-      hardcoded links in the app
-- [ ] Vercel Cron paths still correct under `basePath`
-- [ ] Auth callback and redirect URLs updated in better-auth config
+- [ ] Cookies stay **host-only** — do NOT set `Domain=.biscuitlab.net` (both
+      zones share the apex host after cutover; a domain cookie breaks the
+      `__Host-` prefix and widens CSRF surface)
+- [ ] `metadataBase` = `https://biscuitlab.net/puzzles`; every page emits a
+      self-referencing canonical to the public URL
+- [ ] **No Host-based `noindex`.** Canonical tags are the primary mitigation;
+      rely on Vercel's automatic `noindex` on `*.vercel.app`. A Host-gated
+      `X-Robots-Tag` on the origin also fires on the *proxied* response and would
+      deindex the public URLs (validation doc §1)
+- [ ] better-auth: `BETTER_AUTH_URL=https://biscuitlab.net/puzzles`, client
+      `baseURL: 'https://biscuitlab.net/puzzles/api/auth'`,
+      `trustedOrigins: ['https://biscuitlab.net']`
+- [ ] `puzzles.biscuitlab.net/*` → `biscuitlab.net/puzzles/*`, 301 permanent
+      (a separate redirect project is cleanest, or `basePath: false` on the rule)
+- [ ] Cross-zone links use `<a>`, not `<Link>` — soft navigation breaks across
+      zones
+- [ ] Absolute URLs audited: OG images, canonicals, sitemap `loc`, JSON-LD URLs,
+      `robots.txt` `Sitemap:`, WebAuthn `origin`, OAuth callbacks, email links
+- [ ] Vercel Cron path is `/puzzles/api/cron/daily` under `basePath`; returns 2xx
+      (crons don't follow redirects)
+- [ ] Google OAuth Authorized redirect URIs + JS origins updated
 
 ## Rollback
 
@@ -483,8 +503,10 @@ move still works. This is the gate that matters.
 All of Part 8: hand-rolled sitemap index, `robots.ts` with the AI-crawler
 decision made, JSON-LD, OG images, IndexNow, Search Console and Bing on the apex.
 
-**Gate:** the sitemap index validates, both properties verified, the origin
-hostname returns `noindex`, JSON-LD passes the Rich Results Test.
+**Gate:** the sitemap index validates, both properties verified, every Puzzle
+Lab page emits a canonical to `biscuitlab.net/puzzles/*` (canonical-first — **not**
+a Host-based origin `noindex`, see validation doc §1), JSON-LD passes the Rich
+Results Test.
 
 ## B5 — zfertig.com integration
 
