@@ -1,36 +1,51 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Biscuit Lab Hub
 
-## Getting Started
+The static hub at [`biscuitlab.net`](https://biscuitlab.net) — it owns the apex
+domain, indexes the projects, and hosts the build log. Companion to Puzzle Lab
+(served under `/puzzles` via a multi-zone rewrite) and to `zfertig.com`.
 
-First, run the development server:
+Built with Next.js (App Router) + TypeScript + Tailwind. It is deliberately
+small and static: no auth, no database, no CMS. See
+[`Docs/BiscuitLab_Hub_Plan.md`](Docs/BiscuitLab_Hub_Plan.md) for the
+authoritative scope and [`Docs/roadmap.md`](Docs/roadmap.md) for the build plan.
+
+## Getting started
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+| Script | What |
+| --- | --- |
+| `npm run dev` | Dev server |
+| `npm run build` | Production build |
+| `npm run start` | Serve the production build |
+| `npm run lint` | ESLint (incl. `jsx-a11y`) |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run test:e2e` | Playwright — includes the 320px reflow gate |
 
-## Learn More
+## Roadmap
 
-To learn more about Next.js, take a look at the following resources:
+The hub is sliced B0–B5 with gates. Full detail in
+[`Docs/roadmap.md`](Docs/roadmap.md).
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Phase | What | Status |
+| :---: | --- | :---: |
+| **0** | Foundations — scaffold reset, repo baseline, prerequisites | 🚧 In progress |
+| **1** | The hub page — cards + status stamp | 📋 Planned |
+| **2** | The build log — MDX pipeline, first post | 📋 Planned |
+| **3** | Multi-zone `/puzzles` migration | 📋 Planned |
+| **4** | SEO surface | 📋 Planned |
+| **5** | zfertig.com `feed.json` integration | 📋 Planned |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Docs
 
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- [`Docs/`](Docs/) — living plans (hub plan, roadmap, web-presence, audit)
+- [`Docs/design/`](Docs/design/) — the design system
+- [`Docs/research/`](Docs/research/) — deep-dive best-practice references
+- [`Docs/archive/`](Docs/archive/) — superseded plans

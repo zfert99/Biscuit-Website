@@ -1,17 +1,13 @@
-import TopNav from "@/components/TopNav";
-import HeroPlaceholder from "@/components/HeroPlaceholder";
-import SidebarPlaceholder from "@/components/SidebarPlaceholder";
-import ArcadeMatrix from "@/components/ArcadeMatrix";
-import FooterControls from "@/components/FooterControls";
-
 export default function HomePage() {
   return (
-    <div id="portal-root">
-      <TopNav />
-      <HeroPlaceholder />
-      <SidebarPlaceholder />
-      <ArcadeMatrix />
-      <FooterControls />
-    </div>
+    <main className="hello">
+      <p className="hello__eyebrow">biscuit lab</p>
+      <h1 className="hello__title">Something is baking.</h1>
+      <p className="hello__lede">
+        The hub that owns the apex, indexes the projects, and keeps the build
+        log. The bench is set up; the work starts here.
+      </p>
+      <p className="hello__aside">est. today, mostly stable</p>
+    </main>
   );
 }

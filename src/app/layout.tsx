@@ -1,32 +1,36 @@
 import type { Metadata } from "next";
-import { Press_Start_2P, Inter, Share_Tech_Mono } from "next/font/google";
+import { Fredoka, Manrope, Space_Mono } from "next/font/google";
 import "./globals.css";
 
-// Self-hosted via next/font — no external network requests
-const pressStart2P = Press_Start_2P({
-  weight: "400",
+// Self-hosted via next/font — no external requests, no layout shift.
+// See Docs/design/design-system.md §2.
+const fredoka = Fredoka({
   subsets: ["latin"],
-  variable: "--font-pixel",
+  variable: "--font-display",
   display: "swap",
 });
 
-const inter = Inter({
+const manrope = Manrope({
   subsets: ["latin"],
   variable: "--font-body",
   display: "swap",
 });
 
-const shareTechMono = Share_Tech_Mono({
-  weight: "400",
+// Space Mono is not a variable font, so a weight is required.
+const spaceMono = Space_Mono({
+  weight: ["400", "700"],
   subsets: ["latin"],
   variable: "--font-mono",
   display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "BiscuittArcade — Developer Portfolio",
-  description:
-    "The retro arcade portfolio of BiscuittArcade — a web developer portfolio styled as a nostalgic Flash game portal. Explore case studies, interactive projects, and contact info.",
+  metadataBase: new URL("https://biscuitlab.net"),
+  title: {
+    default: "Biscuit Lab",
+    template: "%s · Biscuit Lab",
+  },
+  description: "A small lab: the projects, and the build log behind them.",
 };
 
 export default function RootLayout({
@@ -35,11 +39,9 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${pressStart2P.variable} ${inter.variable} ${shareTechMono.variable} h-full`}
+      className={`${fredoka.variable} ${manrope.variable} ${spaceMono.variable}`}
     >
-      <body className="scanlines min-h-full">
-        {children}
-      </body>
+      <body>{children}</body>
     </html>
   );
 }
