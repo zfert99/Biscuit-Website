@@ -510,3 +510,48 @@ the interruption costs re-reading a document rather than reloading a
 half-finished slice. Keep it bounded — if the hub is taking more than the
 afternoon plus B4–B5, the cause is scope, and Part 1's non-goals list is the
 remedy.
+
+---
+
+# PART 11 — Build decisions (as implemented)
+
+Recorded during the build so the plan matches the code. Live progress is in
+`Docs/roadmap.md`; this captures where implementation firmed up or diverged from
+the assumptions above. As of 2026-07-29: B0/B1/B2/B5 done, B4 done in-repo
+(deploy/account items deferred), B3 + prerequisites outstanding.
+
+- **Styling.** Colocated **CSS Modules** per component over the `globals.css`
+  token layer — not the Tailwind theme mapping the design doc sketched. The
+  a11y floor (reflow, `:focus-visible`, reduced-motion, media `max-width`) and a
+  skip link live in `globals.css`.
+- **Dark mode** ships via `prefers-color-scheme` only — no toggle, no
+  `data-theme` layer (matches the Part 1 non-goal; it was free from the tokens).
+- **Status stamp.** Themed `--ink` border (flips per theme, so 3:1 vs the card
+  holds in both); `live`/`in-the-lab` use coloured fills with fixed-dark text;
+  `shelved` is outline-only. The one handwritten header aside is **not** rotated
+  — the stamp stays the single off-square element.
+- **Log posts.** Clean slugs (`ksudoku-source-vs-docs.mdx`), not the
+  date-prefixed filename sketched in Part 3 — the date lives only in
+  frontmatter. `lib/log.ts` normalizes frontmatter dates to `yyyy-mm-dd` (YAML
+  auto-parses an unquoted `date:` into a `Date`, which otherwise leaks into JSON
+  and `<time>`).
+- **MDX.** `@next/mdx` + `remark-frontmatter`, plugins in **string** form
+  (required by Turbopack). `mdx` is in `pageExtensions` to enable the loader, but
+  posts live in `src/content/log` and are imported as content — this is the
+  sanctioned `@next/mdx` setup, **not** the `pageExtensions` colocation
+  anti-pattern the agent rules warn against.
+- **SEO (Part 8) status.** Shipped: `sitemap.ts`, `robots.ts` (citation AI bots
+  allowed; training crawlers allowed with a documented one-line flip), JSON-LD
+  (`Organization`/`WebSite`/`Person` + `BreadcrumbList` + `Article`), and OG
+  images. Deferred until the domain is live / migration lands: the hand-rolled
+  sitemap **index** (needs `/puzzles`), IndexNow, and Search Console/Bing
+  verification.
+- **Project card `href`** points at `puzzles.biscuitlab.net` today; it switches
+  to `/puzzles` at migration (Part 7).
+- **Toolchain.** Next pinned at `16.2.12`; `overrides` for Next's nested
+  `postcss`/`sharp`; CI audits production deps only. ESLint 10 / TypeScript 7 /
+  `@types/node` 26 are deferred — see
+  `Docs/research/eslint10-ts7-upgrade-blockers.md`.
+- **Repo governance.** Branch protection requires the `verify` check + linear
+  history + a PR with 0 approvals (`enforce_admins` off as a solo escape hatch);
+  squash-only merge with the PR title as the message.
