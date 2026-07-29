@@ -7,6 +7,11 @@ corrections/additions folded in here come from `Docs/Plan_Audit_vs_Research.md`.
 **Status legend:** ✅ Done · 🚧 In progress · 📋 Planned · ⛔ Blocked (prereq)
 **Tracks:** 🏗️ Setup · 🎨 UI · 🔀 Infra · 🔎 SEO · 🔗 Integration
 
+**Status (2026-07-29):** everything buildable in this repo is done — Phases D,
+0a, 0b, 1, 2, and 5, plus the in-repo half of 4. What's left all needs
+cross-repo work, a live domain, or account access (see **Remaining before
+launch** below).
+
 ## At a glance
 
 | Phase | What | Track | Status |
@@ -198,3 +203,31 @@ the strip, it doesn't fail the build).
 - **Do not sequence anything time-sensitive behind organic traffic** (audit
   Part 4): a freshly migrated apex is a spring-2027 traffic story at the earliest.
   The SEO work is cheap and compounds; it just can't be a near-term dependency.
+
+---
+
+## Remaining before launch
+
+Everything below needs cross-repo work, a live domain, or account access — none
+of it is buildable from this repo alone.
+
+1. **0c — prerequisites** (gate the migration):
+   - Move Puzzle Lab's WebAuthn `rpID` → `biscuitlab.net`; verify a passkey
+     round-trips. Goes first, on its own.
+   - Registrar/DNS: domains at Porkbun/Spaceship, nameservers → Vercel, no
+     Cloudflare proxy (audit C1).
+   - Search Console + Bing Webmaster + analytics (Vercel Analytics + Plausible/
+     Umami).
+2. **3 — multi-zone migration** (hub plan Part 7): `basePath`, rewrites, the
+   `puzzles.biscuitlab.net` → `/puzzles` 301, cookie domain, `metadataBase`,
+   origin-host `noindex`. Blocked on 0c's rpID move.
+3. **4 — SEO tail** (unblocks once the domain is live / migration lands):
+   - Hand-rolled sitemap **index** referencing the puzzle zone (audit C4).
+   - IndexNow key + submission (audit A3).
+   - Verify both properties; confirm origin host returns `noindex`; run the Rich
+     Results Test.
+4. **zfertig.com side of Phase 5**: consume `feed.json` at build time for the
+   "From the lab" strip, degrading gracefully on fetch failure.
+
+Deferred toolchain upgrades (not launch-blocking) are tracked in
+`Docs/research/eslint10-ts7-upgrade-blockers.md`.

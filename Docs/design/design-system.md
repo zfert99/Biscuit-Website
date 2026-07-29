@@ -221,6 +221,12 @@ as a blocking check, and a Playwright test asserting `documentElement.scrollWidt
 
 ## 8. Implementation notes (Next.js + Tailwind)
 
+**As built:** dark mode ships via `prefers-color-scheme` (no toggle, no
+`data-theme` layer) — it falls out of the tokens for free, which is the only bar
+a dark mode had to clear here. Styling is colocated **CSS Modules** per component
+over this global token layer; the Tailwind theme mapping below is optional and
+not currently used.
+
 ```css
 /* globals.css — token layer, mirrors the tables above */
 :root {
@@ -231,20 +237,27 @@ as a blocking check, and a Playwright test asserting `documentElement.scrollWidt
   --mint: #2FAE86; --cherry: #D8453F;
   --r-sm: 8px; --r-md: 14px; --r-lg: 20px;
 }
-[data-theme="dark"] {
-  --paper: #1B1224; --paper-2: #241833;
-  --ink: #F5E9CE; --ink-soft: #C9B8A0;
-  --butterscotch: #F2B65A; --grape: #9B7FD4;
-  --mint: #4FCBA0; --cherry: #F06B65;
+@media (prefers-color-scheme: dark) {
+  :root {
+    --paper: #1B1224; --paper-2: #241833;
+    --ink: #F5E9CE; --ink-soft: #C9B8A0;
+    --butterscotch: #F2B65A; --butterscotch-dark: #C97F1E;
+    --grape: #9B7FD4; --grape-dark: #3E2A69;
+    --mint: #4FCBA0; --cherry: #F06B65;
+  }
 }
 ```
 
-Map these into the Tailwind theme (e.g. `paper`, `ink`, `butterscotch`,
-`grape`) so components use `bg-paper`, `text-ink`, `border-ink` rather than raw
-hex. Use `next/font/google` to self-host Fredoka, Manrope, and Space Mono
-(avoids layout shift and external requests). Build the "pressable" shadow as a
-reusable Tailwind utility or a `.chunky` class rather than repeating box-shadow
-declarations.
+Use `next/font/google` to self-host Fredoka, Manrope, and Space Mono (plus
+Permanent Marker for the single header aside) — no layout shift, no external
+requests. The "pressable" shadow is a repeated `box-shadow: 4px 4px 0 0
+var(--ink)` that collapses on `:active`.
+
+**Status-stamp contrast, as built:** the tag border uses the themed `--ink`, so
+it flips with the theme and always clears 3:1 against the card. `live` /
+`in-the-lab` use a coloured fill (mint / butterscotch) with **fixed dark** text
+(the light fills stay light in both themes); `shelved` is outline-only in
+`--ink-soft`. The status **word** carries the meaning; colour only reinforces it.
 
 **Do not extract a shared design-system package.** Two consumers (hub + Puzzle
 Lab) does not justify the coordination cost. Copy these tokens into the hub's
