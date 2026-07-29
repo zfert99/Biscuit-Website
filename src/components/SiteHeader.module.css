@@ -1,0 +1,30 @@
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.4rem 0.85rem;
+  max-width: 62rem;
+  margin-inline: auto;
+  padding: 1.5rem 1.25rem;
+}
+
+.wordmark {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: 1.5rem;
+  color: var(--grape);
+  text-decoration: none;
+}
+
+.wordmark:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* The one handwritten line. Not rotated — the status stamp is the single
+   off-square element on the page (hub plan Part 5 restraint check). */
+.aside {
+  font-family: var(--font-hand), var(--font-mono), cursive;
+  font-size: 1.05rem;
+  color: var(--ink-soft);
+}

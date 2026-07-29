@@ -1,0 +1,37 @@
+.hub {
+  max-width: 62rem;
+  margin-inline: auto;
+  padding: 1.5rem 1.25rem 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2.5rem;
+}
+
+.intro {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  max-width: 34rem;
+  padding-top: 1.5rem;
+}
+
+.title {
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-weight: 600;
+  font-size: clamp(2rem, 6vw, 3rem);
+  line-height: 1.05;
+}
+
+.lede {
+  font-size: 1.125rem;
+  color: var(--ink-soft);
+}
+
+/* An ordered grid — deliberate at one card, and it fills in cleanly as more
+   projects land. Cards keep a natural width instead of stretching full-bleed. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  gap: 1.5rem;
+  list-style: none;
+}

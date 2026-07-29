@@ -1,0 +1,37 @@
+.stamp {
+  display: inline-block;
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 700;
+  font-size: 0.7rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  padding: 0.2rem 0.5rem;
+  /* Themed --ink border flips with the theme, so it always clears 3:1 against
+     the card in both light and dark (SC 1.4.11). */
+  border: 2.5px solid var(--ink);
+  border-radius: var(--r-sm);
+  box-shadow: 2px 2px 0 0 var(--ink);
+  /* The one rotated element on the page. */
+  transform: rotate(-3deg);
+}
+
+/* Text stays a fixed dark on the light-toned fills so it reads in both themes
+   (the themed --ink would go light-on-light in dark mode). */
+.live {
+  background: var(--mint);
+  color: #2b1b12;
+}
+
+.inTheLab {
+  background: var(--butterscotch);
+  color: #2b1b12;
+}
+
+/* Shelved is the muted, outline-only state — no fill to read as inactive. */
+.shelved {
+  background: transparent;
+  color: var(--ink-soft);
+  border-color: var(--ink-soft);
+  box-shadow: 2px 2px 0 0 var(--ink-soft);
+}
