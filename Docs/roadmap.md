@@ -200,14 +200,19 @@ before the move still works. **Open (Vercel console, not code):** attach
 - **Per-page canonicals** on Puzzle Lab (root-layout `alternates: { canonical:
   './' }`, PG #34) — the origin-indexing defense is **canonical-first**, not a
   Host-based origin `noindex` (which would fire on the proxied public response too).
+- **Cross-zone sitemaps + noindex hygiene** — the puzzle zone ships its own
+  `app/sitemap.ts` (`/puzzles/sitemap.xml`, PG #37) and the hub's `robots.txt` lists
+  **both** sitemaps. This **supersedes audit C4's hand-rolled index**: a new research
+  brief (`Docs/research/sitemap-architecture-multi-zone.md`) found that at <100 URLs an
+  index adds a drift-prone file for zero crawl benefit and collides with Next's
+  `sitemap.ts` special file — so **Option B** (two sitemaps in robots.txt) is the call.
+  Auth pages (`/signin`, `/account`) carry `noindex` and are excluded (PG #37).
 
 **Deferred (need a live domain / migration / account access):**
 
-- **Hand-rolled sitemap index** referencing the puzzle zone — now unblocked (the
-  puzzle zone is live); build `app/sitemap.xml/route.ts` listing the hub's own
-  sitemap + `/puzzles/sitemap.xml` (audit C4).
 - **IndexNow** (audit A3) — needs the live apex + Bing.
-- **Search Console + Bing verification** on the apex — account actions (part of 0c).
+- **Search Console + Bing verification** on the apex — account actions (part of 0c);
+  submit both sitemaps there.
 
 **Gate (partial):** JSON-LD is emitted server-side and ready for the Rich Results
 Test, and per-page canonicals resolve to `biscuitlab.net/puzzles/*`; the full gate
@@ -261,13 +266,15 @@ of it is buildable from this repo alone.
    folded 301 fires), and decommission the redundant `puzzles-redirect` project.
    Full record: `Docs/multi-zone-cutover-log.md`.
 3. **4 — SEO tail:**
-   - Hand-rolled sitemap **index** referencing the puzzle zone (audit C4) — now
-     unblocked.
+   - ✅ Cross-zone sitemaps (Option B): hub `robots.txt` lists both; puzzle zone
+     ships `/puzzles/sitemap.xml` (PG #37). Research:
+     `Docs/research/sitemap-architecture-multi-zone.md`.
    - IndexNow key + submission (audit A3).
-   - Verify both GSC properties; run the Rich Results Test. *(Per-page canonicals
-     to `biscuitlab.net/puzzles/*` — ✅ done, PG #34.)*
-   - **Confirm hardening** (from the cutover log): `serverActions.allowedOrigins`
-     through the proxy, `next/image` `remotePatterns`/`qualities`, `CRON_SECRET` 401.
+   - Verify both GSC properties; submit both sitemaps; run the Rich Results Test.
+     *(Per-page canonicals to `biscuitlab.net/puzzles/*` — ✅ done, PG #34.)*
+   - ✅ **Hardening confirmed** (cutover log): `CRON_SECRET` → 401;
+     `serverActions.allowedOrigins` set (PG defines no server actions, so nothing to
+     exercise); `next/image` unused in PG, so `remotePatterns`/`qualities` are N/A.
 4. **zfertig.com side of Phase 5**: consume `feed.json` at build time for the
    "From the lab" strip, degrading gracefully on fetch failure.
 
