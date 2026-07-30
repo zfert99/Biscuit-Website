@@ -210,7 +210,9 @@ before the move still works. **Open (Vercel console, not code):** attach
 
 **Deferred (need a live domain / migration / account access):**
 
-- **IndexNow** (audit A3) — needs the live apex + Bing.
+- **IndexNow** (audit A3) — ✅ wired: key hosted at `public/<key>.txt` + an
+  `npm run indexnow` helper that submits both sitemaps' URLs (Bing/Yandex). Run it
+  after publishing/changing content, once the key file is deployed.
 - **Search Console + Bing verification** on the apex — account actions (part of 0c);
   submit both sitemaps there.
 
@@ -269,7 +271,8 @@ of it is buildable from this repo alone.
    - ✅ Cross-zone sitemaps (Option B): hub `robots.txt` lists both; puzzle zone
      ships `/puzzles/sitemap.xml` (PG #37). Research:
      `Docs/research/sitemap-architecture-multi-zone.md`.
-   - IndexNow key + submission (audit A3).
+   - ✅ IndexNow wired (key file + `npm run indexnow` helper); run after content
+     changes to ping Bing/Yandex.
    - Verify both GSC properties; submit both sitemaps; run the Rich Results Test.
      *(Per-page canonicals to `biscuitlab.net/puzzles/*` — ✅ done, PG #34.)*
    - ✅ **Hardening confirmed** (cutover log): `CRON_SECRET` → 401;
