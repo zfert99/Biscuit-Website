@@ -332,6 +332,14 @@ Validated and corrected against
 The self-defeating Host-based `noindex` and the `.biscuitlab.net` cookie from an
 earlier draft are removed below.
 
+**DNS reality (as configured):** `biscuitlab.net` is at Cloudflare Registrar on
+Cloudflare nameservers, with **grey-cloud (DNS-only)** records → Vercel; the apex
+serves the hub. That's a supported Vercel setup — the audit's "not Cloudflare"
+concern was the reverse **proxy** (orange-cloud), which is not in use. No
+registrar transfer or nameserver delegation is required; the one rule is to keep
+records grey-cloud, never proxied. See the runbook §B and
+`Docs/multi-zone-migration-runbook.md` for the operational detail.
+
 - [ ] rpID confirmed on the apex, fresh passkey round-trip tested
 - [ ] `basePath: '/puzzles'` set; app boots locally at `/puzzles`
       (basePath auto-scopes `/_next/*` in Next 15+ — no `assetPrefix`)

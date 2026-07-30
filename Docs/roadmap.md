@@ -19,10 +19,10 @@ launch** below).
 | **D** | Docs & planning — hub plan, design system, research corpus, this roadmap | 🏗️ | ✅ Done |
 | **0a** | Reset the arcade scaffold to the hub | 🏗️ | ✅ Done |
 | **0b** | Repo baseline — CI, Dependabot, branch protection | 🏗️ | ✅ Done |
-| **0c** | Cross-repo prerequisites (Puzzle Lab rpID, domains, DNS) | 🔀 | ⛔ Blocked |
+| **0c** | Cross-repo prereqs — rpID ✅, DNS/apex ✅; GSC/Bing remain | 🔀 | 🚧 In progress |
 | **1** | The hub page — cards, status stamp, `Person` JSON-LD | 🎨 | ✅ Done |
 | **2** | The build log — MDX pipeline, first post | 🎨 | ✅ Done |
-| **3** | Multi-zone migration — `/puzzles` rewrite + 301 | 🔀 | ⛔ Blocked |
+| **3** | Multi-zone migration — cutover pre-staged, flip pending | 🔀 | 🚧 In progress |
 | **4** | SEO surface — sitemap, robots, schema, OG images | 🔎 | 🚧 In progress |
 | **5** | zfertig.com integration — `feed.json` | 🔗 | ✅ Done |
 
@@ -132,9 +132,10 @@ Per-post `opengraph-image.tsx` intentionally deferred to Phase 4 (SEO surface).
 
 **Gate met:** the post reads as a finished piece; recent posts surface on the hub.
 
-## Phase 3 — Multi-zone migration (B3) ⛔ 🔀
+## Phase 3 — Multi-zone migration (B3) 🚧 🔀
 
-The genuinely fiddly part — read hub plan Part 7 in full first. Blocked on 0c.
+The genuinely fiddly part — read hub plan Part 7 first. **A + B done; cutover
+pre-staged, the coordinated flip is pending** (see the runbook's master sequence).
 **Groundwork drafted:** `Docs/multi-zone-migration-runbook.md` (cross-repo
 sequence + your blocker steps) and, in the Puzzle-Generator repo,
 `Docs/multi-zone-migration-plan.md` (the rpID/basePath code diffs). **Both were
@@ -142,13 +143,13 @@ audited against `Docs/research/multi-zone-migration-validation.md`** — which k
 the Host-based origin `noindex` (self-defeating), the `.biscuitlab.net` cookie
 (unnecessary/risky), and confirmed the rpID/basePath/301 core. Read it first.
 
-- `basePath: '/puzzles'` on Puzzle Lab; rewrite target is a **distinct origin
-  hostname** (not `puzzles.biscuitlab.net`, or you get a redirect loop).
-- Both rewrite entries (`/puzzles` and `/puzzles/:path*`); `puzzles.biscuitlab.net`
-  301s to `biscuitlab.net/puzzles/*`.
-- Session cookie domain, `metadataBase = https://biscuitlab.net`,
-  `X-Robots-Tag: noindex` on the origin host, absolute-URL audit, cron paths,
-  auth callback URLs.
+- `basePath: '/puzzles'` on Puzzle Lab; rewrite target is Puzzle Lab's own
+  `*.vercel.app` URL (distinct from `puzzles.biscuitlab.net`, so no redirect
+  loop — no dedicated origin host needed).
+- Both rewrite entries; `puzzles.biscuitlab.net` 301s to `biscuitlab.net/puzzles/*`.
+- **Host-only cookies** (no `.biscuitlab.net`); `metadataBase = …/puzzles` +
+  canonicals (**not** a Host-based origin `noindex`); `serverActions.allowedOrigins`;
+  better-auth client `baseURL`; cron path; OAuth callbacks; absolute-URL audit.
 
 **Gate (the one that matters):** `biscuitlab.net/puzzles` serves the app with
 assets + auth intact, `puzzles.biscuitlab.net` 301s without looping, and a
@@ -217,21 +218,22 @@ the strip, it doesn't fail the build).
 Everything below needs cross-repo work, a live domain, or account access — none
 of it is buildable from this repo alone.
 
-1. **0c — prerequisites** (gate the migration):
-   - Move Puzzle Lab's WebAuthn `rpID` → `biscuitlab.net`; verify a passkey
-     round-trips. Goes first, on its own.
-   - Registrar/DNS: domains at Porkbun/Spaceship, nameservers → Vercel, no
-     Cloudflare proxy (audit C1).
-   - Search Console + Bing Webmaster + analytics (Vercel Analytics + Plausible/
-     Umami).
-2. **3 — multi-zone migration** (hub plan Part 7): `basePath`, rewrites, the
-   `puzzles.biscuitlab.net` → `/puzzles` 301, cookie domain, `metadataBase`,
-   origin-host `noindex`. Blocked on 0c's rpID move.
-3. **4 — SEO tail** (unblocks once the domain is live / migration lands):
+1. **0c — prerequisites:**
+   - rpID → `biscuitlab.net`: ✅ done (verified via the new `/account` page).
+   - DNS / apex: ✅ done — Cloudflare **grey-cloud (DNS-only)** → Vercel, apex
+     serves the hub. No transfer needed (and locked until ~Aug 2026 anyway); the
+     one rule is to keep records grey-cloud, never proxied.
+   - **Remaining:** Search Console + Bing on the apex, and analytics.
+2. **3 — multi-zone migration** (hub plan Part 7): cutover code pre-staged (hub
+   rewrite dormant behind `PUZZLES_ORIGIN`; PG cutover drafted). Remaining is the
+   coordinated **flip** — set `PUZZLES_ORIGIN`/`BETTER_AUTH_URL`, merge the PG
+   cutover, add the 301 — plus the cross-zone card `href` flip + sitemap index.
+   See the runbook's master sequence.
+3. **4 — SEO tail** (unblocks once the migration lands):
    - Hand-rolled sitemap **index** referencing the puzzle zone (audit C4).
    - IndexNow key + submission (audit A3).
-   - Verify both properties; confirm origin host returns `noindex`; run the Rich
-     Results Test.
+   - Verify both GSC properties; confirm canonicals resolve to
+     `biscuitlab.net/puzzles/*`; run the Rich Results Test.
 4. **zfertig.com side of Phase 5**: consume `feed.json` at build time for the
    "From the lab" strip, degrading gracefully on fetch failure.
 

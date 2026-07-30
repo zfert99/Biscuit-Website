@@ -25,6 +25,19 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  async rewrites() {
+    // Multi-zone: serve Puzzle Lab under /puzzles by proxying to its own Vercel
+    // deployment. DORMANT until PUZZLES_ORIGIN is set (Phase 3 cutover) — returns
+    // [] today, so this is a no-op. Target is Puzzle Lab's own *.vercel.app URL;
+    // no dedicated origin host is needed (validation doc §1). Both entries are
+    // required — the bare /puzzles path doesn't always match :path*.
+    const origin = process.env.PUZZLES_ORIGIN?.replace(/\/$/, "");
+    if (!origin) return [];
+    return [
+      { source: "/puzzles", destination: `${origin}/puzzles` },
+      { source: "/puzzles/:path*", destination: `${origin}/puzzles/:path*` },
+    ];
+  },
 };
 
 const withMDX = createMDX({
