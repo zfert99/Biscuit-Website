@@ -31,9 +31,11 @@ export const projects: Project[] = [
     blurb:
       "A logic-puzzle workshop built on a from-scratch solver that reasons the way a person does — so every generated puzzle is solvable without guessing.",
     contains: ["Sudoku", "Killer", "Calc"],
-    // Currently served at its own subdomain; becomes "/puzzles" after the
-    // multi-zone migration (hub plan Part 7 / roadmap Phase 3).
-    href: "https://puzzles.biscuitlab.net",
+    // Served under the hub via the multi-zone rewrite (hub plan Part 7 / roadmap
+    // Phase 3). crossZone → hard-nav <a>, same tab: it's a different Next zone but
+    // still our site. The old puzzles.biscuitlab.net subdomain 301s here.
+    href: "/puzzles",
+    crossZone: true,
     status: "live",
     screenshot: "/projects/puzzle-lab.svg",
   },
