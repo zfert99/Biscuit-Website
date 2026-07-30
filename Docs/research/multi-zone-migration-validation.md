@@ -1,11 +1,13 @@
 # Validating the Puzzle Lab Subdomain→Subfolder Multi-Zone Migration (Next.js 16.2.12 on Vercel)
 
 ## TL;DR
+
 - **The single most dangerous item in the plan — a `Host`-header-based `X-Robots-Tag: noindex` on the Puzzle Lab origin — is a self-defeating trap and must NOT be shipped as designed.** When Vercel proxies `biscuitlab.net/puzzles/*` to an external origin deployment, the upstream receives its OWN hostname in both `Host` and `x-forwarded-host` (the public hub host is not reliably preserved), so a Host-based noindex would also fire on the proxied response and deindex the public URLs. Use a canonical tag as the primary mitigation, rely on Vercel's automatic noindex on `.vercel.app`, and gate any residual noindex on a custom header you inject at the hub — never on `Host`.
 - **The plan's core architecture is sound and mostly CONFIRMED:** the `basePath` + external `rewrites()` multi-zone pattern is still valid in Next 16.x; the WebAuthn rpID premise (`biscuitlab.net` works from the subdomain, one-time re-registration is unavoidable if rpID actually changes) is correct; the 301-loop-avoidance reasoning is correct; and moving subdomain→subfolder is genuinely SEO-positive.
 - **Items needing CORRECTION or empirical testing:** the exact `x-forwarded-host` value must be curl-tested; the Search Console Change-of-Address tool does NOT apply to this move; `basePath` auto-scopes `/_next/*` in Next 15+ (no `assetPrefix` needed for the child, contradicting older guidance); `BETTER_AUTH_URL` with a path works but must be paired with the client's full-URL config; the apex-wide `.biscuitlab.net` cookie is unnecessary and carries real risk; and `pageExtensions` for `.mdx` is safe and should be kept.
 
 ## Key Findings
+
 1. **Host-based noindex on the origin is self-defeating.** On Vercel, external rewrites are handled at the CDN layer with `changeOrigin`-style proxying: the upstream origin receives its own hostname in `Host`, and `x-forwarded-host` is normalized to the origin host rather than carrying `biscuitlab.net`. A middleware rule keyed on `Host === origin-puzzles.biscuitlab.net` would therefore match the proxied request too and emit `noindex` on the public URLs. CONFIRMED as a risk; the exact header values must be curl-verified before relying on any header.
 2. **Vercel already noindexes what you want noindexed.** Vercel automatically sets `X-Robots-Tag: noindex` on preview deployments and outdated production deployments. Vercel's Response-headers doc states: *"We add this header automatically with a value of noindex to prevent search engines from crawling your Preview Deployments and outdated Production Deployments."* The robust primary mitigation is a **canonical tag** pointing at `https://biscuitlab.net/puzzles/*`, plus a 301 from the old subdomain.
 3. **The multi-zone pattern is current and correct for Next 16.x**, but Vercel now also offers **Vercel Microfrontends** (`@vercel/microfrontends`, `microfrontends.json`, `withMicrofrontends`) as a newer official mechanism. Manual `basePath` + `rewrites()` is still fully supported and is the right choice for a solo dev who prefers config-in-repo.
@@ -18,6 +20,7 @@
 ## Details
 
 ### 1. The noindex-on-origin-host trap (HIGHEST PRIORITY) — plan is WRONG as written
+
 **Verdict: The Host-based noindex approach is self-defeating and must be redesigned.**
 
 Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #70019 (2024, next 14.2.7), plus Vercel's request-headers documentation (last updated 2025-12-13), establishes the mechanism:
@@ -29,6 +32,7 @@ Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #
 **Consequence:** A middleware rule like `if (host === 'origin-puzzles.biscuitlab.net') setHeader('X-Robots-Tag','noindex')` would fire on BOTH a direct hit to the origin AND the proxied request from the hub — because in both cases the origin sees its own host. That would emit `noindex` on the public `biscuitlab.net/puzzles/*` responses and deindex them. **This is the self-defeating outcome the plan feared, caused by the plan's own mechanism.**
 
 **Correct approaches (in priority order):**
+
 1. **Canonical tags are the right primary mitigation, not noindex.** Set `metadataBase` and a self-referencing canonical so every Puzzle Lab page declares `https://biscuitlab.net/puzzles/...` as canonical. Even if the origin host is hit directly or crawled, Google consolidates to the canonical. This avoids the entire header-proxying problem. Vercel's own guidance (Discussion #5038) reinforces this: system-generated `*.vercel.app` domains "will automatically add a x-robots-tag: noindex header … it's never a bad idea to set the canonical URL manually."
 2. **Rely on Vercel's automatic noindex for `.vercel.app`.** Vercel automatically adds `X-Robots-Tag: noindex` to preview deployments and outdated production deployments. If the origin is only ever reachable at its `*.vercel.app` URL (no custom `origin-puzzles.biscuitlab.net` domain), you likely do not need a dedicated origin hostname at all. Note the documented nuance from Dan Denney's 2024 write-up ("Fixing x-robots nofollow with Vercel"): *"they do not set a x-robots-tag on vercel.app domains if you make a direct request in a browser."* He warned this cost a project *"months of Google indexing"* — so the header's presence on direct vs. proxied requests is exactly what you must verify, not assume.
 3. **If you must noindex the origin host, gate it on a custom header you inject at the hub**, e.g. hub middleware sets `x-hub-proxy: 1` before rewriting, and the origin emits `noindex` only when that header is ABSENT (direct hit). Do NOT gate on `Host` or `x-forwarded-host`. Whether a custom header survives Vercel's edge to the external upstream must itself be curl-verified.
@@ -39,6 +43,7 @@ Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #
 **Empirical test to run:** Add a temporary debug route that returns `headers()`. Then run `curl -sI https://<origin>.vercel.app/puzzles/debug` and `curl -sI https://biscuitlab.net/puzzles/debug`, inspecting `x-robots-tag`, the echoed `host`, `x-forwarded-host`, and `x-vercel-id`. **If direct-vs-proxied show identical `host`/`x-forwarded-host`, the Host-based approach is confirmed unusable** and you must use a custom header or canonical-only. A distinguishable multi-hop `x-vercel-id` chain (plausible but undocumented) would be a fallback discriminator.
 
 ### 2. Multi-zone / basePath specifics for Next 16.x
+
 - **(a) `basePath` auto-scopes `/_next/*`.** CONFIRMED by the Next.js Multi-Zones guide: *"In versions older than Next.js 15, you may also need an additional rewrite to handle the static assets. This is no longer necessary in Next.js 15."* With `basePath: '/puzzles'`, assets serve under `/puzzles/_next/...` and a single `/puzzles/:path*` rewrite covers them. A separate `assetPrefix` is only needed for the "default" app or older versions. This **corrects** earlier advice requiring `assetPrefix` on the child.
 - **(b) Both rewrite entries?** The Next.js multi-zones example uses two entries (`/blog` and `/blog/:path+`) because `:path+` requires at least one segment and does not match the bare `/puzzles`. Using `:path*` (zero-or-more) on a single `/puzzles/:path*` rule can match the bare path, but the documented, safe pattern remains **two entries** (`{source:'/puzzles'}` and `{source:'/puzzles/:path*'}`). Keep both — it is the officially exemplified form and avoids edge-case 404s on the bare path.
 - **(c) Known limitations:**
@@ -51,6 +56,7 @@ Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #
 - **Vercel Microfrontends** provides an enhanced cross-zone `<Link>` with prefetch (`PrefetchCrossZoneLinksProvider`) that mitigates the hard-navigation problem. There is a documented tension: the "basePath required" guidance vs. Microfrontends docs stating basePath is "not supported" in some configs (discussion #85307, Oct 2025). For a solo dev, **stick with manual multi-zones**; Microfrontends adds account/config overhead.
 
 ### 3. better-auth with a base URL that carries a path
+
 - **CONFIRMED that a path in the base URL works:** better-auth docs state *"It will be overridden if there is a path component within `baseURL`… If you include a path in the `baseURL` string, it will take precedence over the default path."* So `BETTER_AUTH_URL=https://biscuitlab.net/puzzles` composes routes at `https://biscuitlab.net/puzzles/api/auth/*` **as long as the client is configured correctly**.
 - **The critical failure mode (GitHub issue #4715 and answeroverflow reports):** developers running under a Next `basePath` get 404s on `/api/auth/*` because the server handler mounts at `/api/auth` while the client calls the prefixed path. The correct configuration is to pass the **full URL including path** to the client (`createAuthClient({ baseURL: 'https://biscuitlab.net/puzzles/api/auth' })`) — better-auth's installation docs say: *"If you're using a different base path other than `/api/auth` make sure to pass the whole URL including the path."* Because the app runs under `basePath: '/puzzles'`, the route handler file `app/api/auth/[...all]/route.ts` is automatically served at `/puzzles/api/auth/*` by Next — so server and client line up. **Test the full round-trip after cutover.**
 - **`trustedOrigins`:** add `https://biscuitlab.net`. better-auth trusts `baseURL` by default; the user-facing origin must be explicitly trusted for CSRF/origin checks to pass through the proxy.
@@ -61,6 +67,7 @@ Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #
   Keep cookies host-only with `useSecureCookies: true` (or rely on production-secure default) and `SameSite=Lax`. An apex cookie would only help session continuity during a brief transition where the app is served from *both* `puzzles.biscuitlab.net` and `biscuitlab.net/puzzles` — and even then it is optional, since the 301 moves users quickly and re-auth is rare.
 
 ### 4. WebAuthn rpID migration
+
 - **(a)/(b)/(c) all CONFIRMED** against the W3C WebAuthn spec and better-auth passkey docs:
   - A credential is permanently bound to its rpID. W3C (`w3c.github.io/webauthn/#rp-id`, quoted on the public-webauthn list, 2021-04-05): *"the caller-specified RP ID value [must be] a registrable domain suffix of or … equal to the caller's origin's effective domain."*
   - `biscuitlab.net` is a valid rpID when serving from `puzzles.biscuitlab.net` (it is a registrable domain suffix). Serving from `biscuitlab.net`, an rpID of `puzzles.biscuitlab.net` is INVALID ("a passkey for example.com works on app.example.com, but not vice versa"). This confirms the plan's premise exactly.
@@ -71,13 +78,16 @@ Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #
 - **Exact option names (CONFIRMED current):** the plugin accepts **`rpID`**, **`rpName`**, and **`origin`**. `origin` is *"The URL at which registrations and authentications should occur"* and must be scheme+host with **no trailing slash** (*"Do NOT include any trailing /"*). It is an origin (scheme+host), not a path, and it is still present (not renamed/deprecated) as of current and canary docs. **Set `rpID: 'biscuitlab.net'` and `origin: 'https://biscuitlab.net'`** after cutover.
 
 ### 5. Vercel Cron under basePath
+
 - CONFIRMED: *"To trigger a cron job, Vercel makes an HTTP GET request to your project's production deployment URL, using the path provided in your project's `vercel.json`."* It hits the deployment's own generated production URL (e.g., `*.vercel.app`), NOT your custom domain, and NOT through the hub's rewrite. So **the hub rewrite is irrelevant to cron**; what matters is that the path exists on the Puzzle Lab deployment.
 - Because `basePath: '/puzzles'` prefixes the route, the handler is served at `/puzzles/api/cron/daily`. Therefore the `vercel.json` `path` **must** be `/puzzles/api/cron/daily`. The plan's change is CORRECT. (Left at `/api/cron/daily`, Vercel would GET a 404 — and Vercel still "executes" the cron and logs a 404, so watch for silent failures.)
 - `CRON_SECRET`: Vercel automatically sends `Authorization: Bearer $CRON_SECRET`; verify it in the handler (`authHeader !== 'Bearer ' + process.env.CRON_SECRET → 401`). basePath does not affect this. Caveat: cron jobs **do not follow redirects** (a 3xx ends the invocation), so ensure `/puzzles/api/cron/daily` returns 2xx directly and is not subject to a trailing-slash or host redirect.
 
 ### 6. The 301 from subdomain to subfolder, and loop avoidance
+
 - **The plan's reasoning is CONFIRMED.** If `puzzles.biscuitlab.net` 301-redirects to `biscuitlab.net/puzzles`, and `biscuitlab.net/puzzles` rewrites back to a destination that resolves to `puzzles.biscuitlab.net`, you get a loop. The rewrite target must be a host distinct from `puzzles.biscuitlab.net` — the deployment's `*.vercel.app` URL (or a dedicated origin host) satisfies this.
 - **Correct implementation on Vercel:** use a `redirects()` / `vercel.json` redirect with a **`has` host condition**:
+
   ```json
   { "redirects": [
     { "source": "/:path*",
@@ -86,12 +96,14 @@ Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #
       "permanent": true }
   ]}
   ```
+
   This is path-preserving (wildcard `:path*` supported) and issues a 301 (`permanent: true`). Documented gotcha (Vercel community): a host-conditioned rule on `/:path*` may not match the **bare root** of the subdomain — add an explicit rule for `source: '/'` if you need `puzzles.biscuitlab.net/` itself redirected.
 - **Where to run it:** Two clean options. (a) Keep `puzzles.biscuitlab.net` assigned to the Puzzle Lab project and add the host-conditioned redirect — but it now has `basePath: '/puzzles'`, so author the redirect with `basePath: false`. (b) Assign `puzzles.biscuitlab.net` to a **separate tiny project** whose only job is the redirect (cleanest; avoids any basePath interaction). For a solo dev, (b) is the least error-prone.
 - **`basePath` interaction (CONFIRMED):** the Next.js rewrites/redirects API reference states *"When leveraging basePath support with rewrites each source and destination is automatically prefixed with the basePath unless you add `basePath: false` to the rewrite… Note: this can not be used for internal rewrites."* Since the destination is an external absolute URL and the source is a bare subdomain path, set `basePath: false` on the redirect entry.
 
 ### 7. SEO mechanics of the move
-- **Change-of-Address tool does NOT apply.** Google Search Console Help (support.google.com/webmasters/answer/9370220) is explicit: *"The Change of Address tool can be used only on properties at the domain level: that is, you can move example.com, m.example.com, or http://example.com. You cannot move properties at the path level, such as http://example.com/petstore/."* A subdomain→subfolder move on the *same registrable domain* is not a domain-level move, so the tool is unavailable/irrelevant. **Rely on 301s + canonicals instead.**
+
+- **Change-of-Address tool does NOT apply.** Google Search Console Help (support.google.com/webmasters/answer/9370220) is explicit: *"The Change of Address tool can be used only on properties at the domain level: that is, you can move example.com, m.example.com, or <http://example.com>. You cannot move properties at the path level, such as <http://example.com/petstore/>."* A subdomain→subfolder move on the *same registrable domain* is not a domain-level move, so the tool is unavailable/irrelevant. **Rely on 301s + canonicals instead.**
 - **Retain 301s for at least a year.** Google Search Central's site-moves guidance states: *"Keep the redirects for as long as possible, generally at least 1 year. This timeframe allows Google to transfer all signals to the new URLs, including recrawling and reassigning links on other sites that point to your old URLs."* (John Mueller's "Ask Googlebot" echoes "I'd aim for at least a year.") Keep them indefinitely since they're cheap. Google's "moving content" guidance also stresses 1:1 URL mapping with 301s.
 - **Keep the old subdomain's GSC property** throughout so you can monitor the migration; add/verify a property (ideally a Domain property covering `biscuitlab.net`) for the new location. Monitor: Indexing/Coverage (old URLs dropping, new URLs appearing), the "Page with redirect" and "Duplicate, Google chose different canonical" reports, Performance (clicks/impressions shifting from old to new URLs), and Crawl Stats.
 - **Realistic timeline:** per Google's site-moves guidance, *"a small to medium-sized website can take a few weeks for most pages to move, and larger sites take longer."* (Gary Illyes has noted larger rebrands "can take 3 months.") For a small site like Puzzle Lab, expect a few weeks to a couple of months for consolidation — monitor rather than assume a fixed date.
@@ -100,6 +112,7 @@ Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #
 - **(c) Sitemap under basePath:** With `basePath: '/puzzles'`, the child app's `app/sitemap.ts` is served at `/puzzles/sitemap.xml` as expected. Ensure the URLs *inside* it are absolute `https://biscuitlab.net/puzzles/...` (driven by `metadataBase`), not the origin host.
 
 ### 8. The `pageExtensions` question
+
 - **Verdict: KEEP `pageExtensions` on the hub for `.mdx`. It is safe and required.**
 - The earlier audit's warning was over-broad. The documented breakage (issue #51478) is specifically about using `pageExtensions` with a **custom suffix convention like `.page.tsx`** while the **Pages Router** and App Router coexist — that causes 404s and `pageExtensions.map is not a function`. Adding standard `md`/`mdx` extensions for `@next/mdx` is a **different, officially-documented** use case: Next.js's own MDX guide instructs `pageExtensions: ['js','jsx','md','mdx','ts','tsx']`, and omitting it makes `.mdx` pages 404 (that's the intended mechanism). There is no known open bug for the plain `md`/`mdx` case on the App Router in 16.x.
 - **`@next/mdx` + Turbopack caveats (CONFIRMED, important for Next 16):**
@@ -109,6 +122,7 @@ Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #
 - **`remark-frontmatter` + `gray-matter`:** `@next/mdx` "does not support frontmatter by default." Using `remark-frontmatter` (so the YAML block isn't rendered) alongside `gray-matter` (to read the metadata) is a widely-used, reasonable App Router pattern. It is not the *only* pattern (some export metadata via a JS export in the MDX), but it is supported and common. Confirm the remark-frontmatter plugin is passed as a **string** under Turbopack.
 
 ### 9. Gaps the plan is missing
+
 - **Absolute-URL audit beyond OG images and email:** also audit sitemap `loc` values, RSS/feeds, JSON-LD structured-data URLs, canonical/alternate links, `robots.txt`'s `Sitemap:` line, any hardcoded `https://puzzles.biscuitlab.net` in client code, redirect targets, WebAuthn `origin`, better-auth `baseURL`/`trustedOrigins`, OAuth callback URLs, and absolute links in transactional emails and share buttons.
 - **`metadataBase`/canonical under basePath:** set `metadataBase: new URL('https://biscuitlab.net/puzzles')`. Note the documented quirk (issue #54070) that `metadataBase` + a root canonical can append a trailing slash you may not want; use explicit per-page canonicals (`alternates.canonical: '/puzzles/...'` resolved against metadataBase). Verify rendered `<link rel="canonical">` matches the public URL exactly (protocol + host + path, no drift to `*.vercel.app`).
 - **OAuth redirect URIs:** update Google OAuth **Authorized redirect URIs** and **Authorized JavaScript origins** in Google Cloud Console to `https://biscuitlab.net` / `https://biscuitlab.net/puzzles/api/auth/callback/google`. This is a hard cutover item — miss it and Google login breaks. Any other providers need the same.
@@ -121,7 +135,9 @@ Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #
 - **Rollback completeness:** a full rollback must (a) remove/disable the hub `/puzzles/*` rewrite, (b) remove the `puzzles.biscuitlab.net → biscuitlab.net/puzzles` 301 (or the old subdomain stays broken), (c) revert `basePath`, `metadataBase`, better-auth `baseURL`/`trustedOrigins`, WebAuthn `rpID`/`origin`, `vercel.json` cron path, and OAuth redirect URIs, and (d) note that **`basePath` is build-time inlined**, so rollback requires a rebuild/redeploy, not just a config flag. Keep the old subdomain's DNS and GSC property intact until confident.
 
 ## Staged Recommendations
+
 **Stage 0 — Pre-flight (before touching production):**
+
 1. **Decide rpID reality:** confirm whether existing passkeys were created with `rpID: 'biscuitlab.net'`. If yes → no re-registration. If no → plan a one-time re-registration flow and user comms. This gates the whole auth story.
 2. On a preview/staging pair, **curl-test header behavior** (§1): capture `host`, `x-forwarded-host`, `x-vercel-id`, `x-robots-tag` for direct-vs-proxied requests via a debug route. This determines whether ANY host-based logic is viable.
 
@@ -145,6 +161,7 @@ Research into `vercel/next.js` issues #67469 (2024, next 15.0.0-canary.54) and #
 **Benchmarks that change the plan:** If the Stage 0.2 curl test shows the origin CAN reliably distinguish proxied vs direct via a custom header, you may add a header-gated noindex as defense-in-depth. If passkeys were created under `puzzles.biscuitlab.net`, insert a mandatory re-registration step and delay auth cutover until users are notified. If GSC shows new URLs not indexing after ~8 weeks, re-check canonicals, robots, and that the origin isn't emitting noindex.
 
 ## Caveats / Open Questions
+
 - **Must be settled by empirical testing (not documentation):** the exact `x-forwarded-host` value at the origin for `next.config` vs `vercel.json` rewrites; whether a hub-injected custom header survives Vercel's edge to the external upstream; whether `.vercel.app` production URLs carry `X-Robots-Tag: noindex` on direct browser hits vs proxied requests; and whether `x-vercel-id` multi-hop chaining can distinguish proxied-vs-direct. Run the curl tests in Stage 0.
 - **Version sensitivity:** the header-overwrite behavior showed a regression between Next 14.0.0 and 14.2.7 (issue #70019); behavior on 16.2.12 is not separately confirmed and may differ. Re-test on your exact version.
 - **Turbopack + MDX plugins** (issue #84258) is an active problem area; string-format plugins with `mdxRs` were still reportedly not applying in some 15.x canaries. Verify on 16.2.12; if frontmatter/plugins misbehave, disabling Turbopack for the build is the fallback.

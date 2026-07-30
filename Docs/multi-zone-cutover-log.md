@@ -41,7 +41,7 @@ auth (passkey + Google) verified, hub card link flipped. Revised against
 
 ## Architecture (how it's wired)
 
-```
+```text
 Browser → biscuitlab.net/puzzles/*  ─rewrite→  <PUZZLES_ORIGIN>/puzzles/*   (Puzzle Lab, basePath '/puzzles')
 Browser → puzzles.biscuitlab.net/*  ─301(pending)→  biscuitlab.net/puzzles/*
 ```
@@ -91,6 +91,7 @@ Key URLs / config:
 ## Blockers / issues encountered
 
 ### 1. DNS was at Cloudflare (audit said "avoid Cloudflare") — RESOLVED
+
 The domain is registered at **Cloudflare** on Cloudflare nameservers, but records
 are **grey-cloud (DNS-only) → Vercel** (no reverse proxy). The audit's concern was
 the Cloudflare *proxy* (orange-cloud); grey-cloud avoids all of it and is a
@@ -98,6 +99,7 @@ supported Vercel setup. No transfer needed (and it's ICANN-locked until ~Aug 202
 anyway). **Rule:** keep every record grey-cloud, never proxied.
 
 ### 2. Wrong `PUZZLES_ORIGIN` → 404 — RESOLVED
+
 First value was `puzzle-generator.vercel.app` — a different/old deploy **without**
 `basePath` (`/puzzles` → 404). Also `*-<hash>-*.vercel.app` URLs are deployment-
 pinned + always protected. Fixed to the stable production alias
@@ -105,6 +107,7 @@ pinned + always protected. Fixed to the stable production alias
 trailing slash).
 
 ### 3. Deployment Protection blocked the proxy — RESOLVED (re-locked correctly)
+
 The production `*.vercel.app` was behind **Vercel Authentication** (302 →
 `vercel.com/sso-api`), so the hub's server-side rewrite couldn't reach it.
 **"Trusted Sources" (OIDC) did NOT cover a transparent `rewrites()` proxy** (that
@@ -124,6 +127,7 @@ custom host), the generated alias → **302** (locked again), and
 closed.
 
 ### 4. Relative auth-client `baseURL` threw at build — RESOLVED
+
 A first attempt set the client `baseURL: '/puzzles/api/auth'` (relative).
 better-auth runs `new URL(baseURL)`, which throws on a relative path (`Invalid
 base URL`) — caught by the Vercel **preview** build on the draft PR (exactly why

@@ -58,7 +58,7 @@ The primary landing application runs an asymmetric click-driven ecosystem. Cruci
 
 ### Game Loop Workflow
 
-```
+```text
 [User Clicks Canvas Area]
   ➔ [Spawns Static Ghost Cursor Tower]
   ➔ [Auto-Fires Projectiles]

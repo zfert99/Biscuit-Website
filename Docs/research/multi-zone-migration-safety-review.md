@@ -1,11 +1,13 @@
 # Safety, Security & Viability Review: Puzzle Lab Multi-Zone Migration on Vercel
 
 ## TL;DR
+
 - **GO — with one mandatory change first.** Finish the multi-zone migration; you are one auth fix from done and the marginal cost to complete now is lower than any alternative. But **before** the auth fix, re-enable Vercel Deployment Protection and reach the Puzzle Lab origin through a **dedicated custom origin host** (e.g. `origin-puzzles.biscuitlab.net`) instead of the generated `*.vercel.app` alias.
 - **Disabling Deployment Protection was the WRONG call and was UNNECESSARY (CORRECTION).** Vercel's Standard Protection, on every plan, *never* covers a custom production domain — only generated `*.vercel.app` URLs and previews. A custom origin hostname attached to the Puzzle Lab project would have been reachable by the hub's `rewrites()` proxy **with protection left fully enabled.** The current state (protection off) is tolerable for a few days but must be changed before public launch.
 - **The better-auth root cause is confirmed, but the developer's proposed fix is only correct under one unverified assumption** — that Next.js 16 does *not* strip its `/puzzles` basePath from the URL the route handler sees. First-hand reports on Next 15 say it *does* strip. Run the 3-line request-logging test below before applying the fix; the correct server config flips depending on the result.
 
 ## Key Findings
+
 1. **Standard Deployment Protection does not protect custom production domains on any plan.** Vercel's docs state Standard Protection "Protects all deployments except production domains. Available on all plans," and note that on Hobby "your production domain remains publicly accessible. To protect production domains, you need a Pro or Enterprise plan." Only the "All Deployments" scope (Pro/Enterprise) gates the production custom domain. The proxy failed because it pointed at a *generated* `*.vercel.app` production URL, which **is** covered by Standard Protection.
 2. **The fix that preserves protection: a dedicated custom origin host.** Attach a second custom domain (e.g. `origin-puzzles.biscuitlab.net`) to the Puzzle Lab project and point the hub's rewrite at it. Custom domains are exempt from Standard Protection, so the transparent proxy reaches it while previews and the generated URL stay locked. Disabling protection entirely was not required.
 3. **Protection Bypass for Automation would also work and is available on all plans.** The `x-vercel-protection-bypass` secret can be sent as a header or `?x-vercel-protection-bypass=` query parameter. A `rewrites()` destination can carry the query param, or Next middleware can add the header — but the query param leaks the secret into logs, so the custom-origin-host approach is cleaner.
@@ -20,6 +22,7 @@
 ### 1. Deployment Protection — was disabling it right, and what does it expose?
 
 **What Deployment Protection covers (CONFIRMED, Vercel docs):**
+
 - **Vercel Authentication** restricts access to Vercel team members (and Shareable-Link holders). This is the mechanism that 302-redirected the proxy to `vercel.com/sso-api`.
 - **Password Protection** gates access behind a shared password (a paid add-on; runs at the edge before app code).
 - **Scopes (verbatim from Vercel docs):** *Standard Protection* — "Protects all deployments except production domains. Available on all plans." *All Deployments* — "Protects all URLs, including production domains. Available on Pro and Enterprise plans." A legacy "Only Preview Deployments" scope also exists.
@@ -29,11 +32,13 @@
 **Why Trusted Sources/OIDC failed (CONFIRMED):** OIDC federation requires the *caller* to obtain and present a token. A transparent `rewrites()` proxy forwards the browser's request unchanged; it does not mint or attach an OIDC token, so the edge still challenges it. This diagnosis was correct.
 
 **Can a `rewrites()` proxy legitimately pass Deployment Protection?** Yes, three supported ways:
+
 - **Protection Bypass for Automation** (all plans): put `?x-vercel-protection-bypass=<secret>` on the rewrite destination, or add the `x-vercel-protection-bypass` header via `middleware`/`proxy`. Works at the edge. Downside: query-param form leaks the secret to logs and referrers (Vercel recommends the header).
 - **Deployment Protection Exceptions** (for a specific domain) — makes one hostname public; effectively the same as the custom-origin-host approach.
 - **A dedicated custom origin host** — the cleanest: no secret to rotate, protection stays on for everything else.
 
 **Security assessment of the current state (protection OFF):**
+
 - **(a) Duplicate-origin SEO — REAL risk, partially UNVERIFIABLE.** Vercel's KB confirms it sets `X-Robots-Tag: noindex` automatically on **preview** deployments and **outdated production** deployments, and that a custom production domain does **not** get the header. Whether the *current* production `*.vercel.app` alias reliably carries `noindex` on a **direct browser request** is not guaranteed: a practitioner (dandenney.com) documented that Vercel did **not** set `X-Robots-Tag` on direct browser hits to a production `*.vercel.app` URL, only on proxied requests, and could not get Vercel to confirm this as intended behavior. A separate July 2026 Vercel Community thread shows Google reporting `noindex` from an *outdated* deployment that the live domain no longer served — proving the header's presence is deployment-state-dependent and hard to reason about. **Because you cannot rely on the alias being noindexed, the exposed public alias is a genuine duplicate-content hazard**, worsened by the fact that Puzzle Lab currently emits **no** `<link rel="canonical">` tags. Mitigation: re-lock the alias (re-enable protection + custom origin host) and add per-page canonicals.
 - **(b) Account/session creation directly against the origin — LIMITED risk.** better-auth performs Origin validation against `trustedOrigins` and adds Fetch-Metadata CSRF protection on sign-in/sign-up. If `trustedOrigins` lists only `https://biscuitlab.net`, requests bearing an origin of the `*.vercel.app` host are rejected. Residual risk: scripted no-Origin requests, but these hit the same rate limits and DB as the canonical host.
 - **(c) Host-cookie leakage — NOT a real risk (CONFIRMED).** better-auth cookies are set with no `Domain` attribute unless `crossSubDomainCookies` is enabled, so they are host-scoped. A cookie set on `biscuitlab.net` is never sent to `*.vercel.app`. A parallel session could be *created* on the alias host, but it cannot inherit the apex session.
@@ -59,24 +64,28 @@
 ### 3. better-auth basePath root cause and proposed fix
 
 **Root cause — CONFIRMED from source (July 30 2026):**
+
 - `withPath(url, path='/api/auth')` returns `url` unchanged when it already carries a path (`if (checkHasPath(url)) return url;`), so with `BETTER_AUTH_URL = https://biscuitlab.net/puzzles` the default `/api/auth` was never appended — matching the docs: *"[basePath] will be overridden if there is a path component within `baseURL`."*
 - The router base path is `const basePath = new URL(ctx.baseURL).pathname;` in `packages/better-auth/src/api/index.ts`. With the bad config this became `/puzzles`, so requests to `/puzzles/api/auth/*` never matched → 404. The developer's diagnosis is correct.
 
 **The pivotal unknown — does Next.js strip its basePath before the handler?** The developer's fix (`BETTER_AUTH_URL = https://biscuitlab.net`, origin-only, **plus** server `basePath: '/puzzles/api/auth'`) makes the router base `/puzzles/api/auth` and the OAuth callback `https://biscuitlab.net/puzzles/api/auth/callback/google` — **correct if and only if** the route handler receives the URL *with* `/puzzles` intact. The developer asserts Next does not strip. **However, issue #4715's author on Next 15.4.1 reports the opposite:** the handler's request URL was `/api/auth/get-session` (prefix stripped), and the working combination was **server baseURL = origin + `/api/auth` (no Next basePath)** while **client baseURL = origin + Next basePath + `/api/auth`**. If Next 16 also strips, the developer's server `basePath: '/puzzles/api/auth'` will 404 again, and you hit a genuine conflict: the *internal* routing path (`/api/auth`) differs from the *public* URL needed for OAuth callbacks (`/puzzles/api/auth`), which better-auth derives from a single `baseURL`.
 
 **Exact test to run BEFORE applying the fix (UNVERIFIABLE without it):** In `app/api/auth/[...all]/route.ts`, temporarily log on a GET to `/puzzles/api/auth/get-session`:
+
 ```ts
 export async function GET(request: Request) {
   console.log('url', request.url);
   // and, if available: request.nextUrl.pathname, request.nextUrl.basePath
 }
 ```
+
 - **If `request.url` contains `/puzzles/api/auth/...`** (not stripped): the developer's fix is correct — `BETTER_AUTH_URL=https://biscuitlab.net`, server `basePath:'/puzzles/api/auth'`, client `basePath:'/puzzles/api/auth'`. Callbacks resolve correctly.
 - **If `request.url` contains only `/api/auth/...`** (stripped): set the server so the router base is `/api/auth` (leave server `basePath` default; `BETTER_AUTH_URL=https://biscuitlab.net` → resolves to `…/api/auth`), keep client `basePath:'/puzzles/api/auth'`, and **explicitly set the Google provider `redirectURI: 'https://biscuitlab.net/puzzles/api/auth/callback/google'`** to repair the public callback URL that the stripped baseURL would otherwise generate wrong. Register that exact URI in Google Cloud Console.
 
 Note that the community workaround in #4715 has **no maintainer-endorsed resolution**, and its author reported at least one plugin route (`organization/has-permission`) still 404'd afterward — so if you use plugins with their own endpoints, test each explicitly.
 
 **Downstream consequences (verify after fix):**
+
 - **Cookie Path — CONFIRMED safe:** better-auth hard-codes `path: "/"` in `createCookieGetter` (`packages/better-auth/src/cookies/index.ts`), so the session cookie is sent on all `/puzzles/...` pages; the fix will not break routes outside `/puzzles/api/auth`. (Overridable only via `advanced.defaultCookieAttributes` / `advanced.cookies.*.attributes`.)
 - **`trustedOrigins`:** set to `['https://biscuitlab.net']` (the public origin). Do not add the `*.vercel.app` host.
 - **passkey `rpID`/`origin`:** keep `rpID = biscuitlab.net`, `origin = https://biscuitlab.net`. Unaffected by the baseURL change.
@@ -88,6 +97,7 @@ Note that the community workaround in #4715 has **no maintainer-endorsed resolut
 **Vercel does support subdomain→subpath redirects natively (CONFIRMED, Vercel KB "Can I redirect from a subdomain to a subpath?").** You do **not** need a throwaway project. Attach `puzzles.biscuitlab.net` to the **hub** project and add a host-conditional redirect. Vercel's `redirects()`/`vercel.json` can capture the path and target another domain's subpath, preserving `/play` → `/puzzles/play`.
 
 Minimal correct `vercel.json` (host-scoped, path-preserving, on whichever project owns `puzzles.biscuitlab.net`):
+
 ```json
 {
   "redirects": [
@@ -100,6 +110,7 @@ Minimal correct `vercel.json` (host-scoped, path-preserving, on whichever projec
   ]
 }
 ```
+
 Notes: the bare root (`/`) is covered by `:path*` matching empty. If you configure this inside a Next.js app that has `basePath` set, add `basePath: false` to the redirect so the rule is not prefixed. **Vercel issues 308 for `permanent: true`, not 301** — this is fine for SEO: Google's John Mueller confirmed "if you use it like a 301 we'll treat it as such," and Search Central treats 308 like 301 for link-equity transfer. The tiny-project approach works but adds a project to maintain; folding the redirect into the hub eliminates it. It can be collapsed later with zero downside.
 
 ### 5. Cloudflare grey-cloud DNS decision
@@ -107,6 +118,7 @@ Notes: the bare root (`/`) is covered by `:path*` matching empty. If you configu
 **Verdict: leave it as-is. Cloudflare Registrar + Cloudflare nameservers + DNS-only (grey-cloud) records pointing at Vercel is a genuinely supported, trouble-free setup (CONFIRMED).** The earlier "avoid Cloudflare" advice was specifically about the **orange-cloud reverse proxy**, which causes redirect loops (with SSL mode "Flexible") and blocks Vercel's ACME challenge. Grey-cloud avoids both.
 
 Residual gotchas and confirmations:
+
 - **A record vs CNAME:** use Vercel's apex A record for `biscuitlab.net`; a CNAME/flattened record for subdomains. Keep records DNS-only.
 - **TLS issuance/renewal:** Vercel issues and auto-renews certs via ACME through a grey-clouded record; confirmed working. Cloudflare Universal SSL does not interfere when the record is DNS-only (Cloudflare is not terminating TLS).
 - **Do not add AAAA records** for the Vercel apex (Vercel doesn't support IPv6 for third-party-DNS custom domains; a stray AAAA can stall SSL).
@@ -125,7 +137,8 @@ Residual gotchas and confirmations:
 - **Caching/ISR/revalidation:** `revalidatePath`/`revalidateTag` are **per-project** — the hub cannot revalidate puzzles' cache and vice versa. The proxy hop can double-count function invocations (hub + origin) for billing. Verify `x-vercel-cache` behavior end-to-end and that cache headers propagate through the rewrite.
 - **Observability:** the hub's logs show the inbound request and the rewrite; the puzzles project's logs show the actual render/API. To trace across the boundary, propagate a request ID header. Alert on: origin 5xx rate, auth-endpoint 4xx spikes, cron 401s, and the redirect returning non-308.
 - **Post-deploy verification checklist (`curl`), run after either zone deploys:**
-```
+
+```bash
 curl -I https://biscuitlab.net/puzzles                       # 200 (page)
 curl -I https://biscuitlab.net/puzzles/_next/static/...       # 200 (asset via assetPrefix)
 curl -I https://biscuitlab.net/puzzles/api/me/today           # 401 (non-auth API alive)
@@ -135,6 +148,7 @@ curl -I https://puzzles.biscuitlab.net/play                   # 308 -> https://b
 curl -I https://biscuitlab.net/puzzles/api/cron/<job>         # 401 without Bearer
 curl -I https://origin-puzzles.biscuitlab.net/puzzles         # reachable by proxy; alias .vercel.app should be 401 (protected)
 ```
+
 - **Rollback:** because `basePath` is build-time-inlined, the fastest safe rollback is Vercel **Instant Rollback** to the prior deployment on each project independently (redeploy the last-good build). If a coupled change spans both zones, roll back the hub first (stops routing to the broken origin), then the origin. This is viable only while the prior deployments are retained (governed by your Deployment Retention setting) — keep at least a few days of retention.
 - **Runbook hygiene (solo dev):** keep a single `MIGRATION.md` documenting: the origin host, the exact `BETTER_AUTH_URL`/basePath/client-basePath values, the Google redirect URI, the deploy-order rule, and this curl checklist. Two coupled repos + a solo maintainer is exactly where undocumented coupling causes outages months later.
 
@@ -154,6 +168,7 @@ curl -I https://origin-puzzles.biscuitlab.net/puzzles         # reachable by pro
 ## Staged Recommendations
 
 **Stage 0 — Before touching auth (do these first):**
+
 1. Create custom origin host `origin-puzzles.biscuitlab.net`, attach it to the Puzzle Lab project (grey-cloud DNS at Cloudflare), and **re-enable Deployment Protection** on Puzzle Lab.
 2. Repoint the hub's rewrite env var to `https://origin-puzzles.biscuitlab.net`; redeploy the hub. Confirm the generated `*.vercel.app` alias now returns 401 while `biscuitlab.net/puzzles` still serves 200.
 3. Fold the `puzzles.biscuitlab.net` → `biscuitlab.net/puzzles` 308 redirect into the hub (host-conditional rule); decommission the throwaway `puzzles-redirect` project.
@@ -173,6 +188,7 @@ curl -I https://origin-puzzles.biscuitlab.net/puzzles         # reachable by pro
 **Thresholds that change the plan:** If Stage 1 step 5 shows basePath is stripped **and** the callback-URL conflict needs hacks, revert to the `puzzles.biscuitlab.net` subdomain (removes basePath, the proxy, the redirect, and Server-Action origins in one move). If you later add a second sub-app or need independent framework/cadence, revisit Microfrontends (after dropping `basePath`).
 
 ## Caveats / Open Questions
+
 - **UNVERIFIABLE without testing:** whether Next.js 16 strips `/puzzles` from the route-handler URL (determines the correct better-auth server config); whether the production `*.vercel.app` alias reliably carries `X-Robots-Tag: noindex` on direct browser requests (documented as inconsistent); exact `x-vercel-cache` and double-invocation billing behavior through your specific rewrite; how your Upstash/KV limiter keys IPs.
 - **Plan-dependence:** "All Deployments" protection scope and Skew Protection are Pro/Enterprise; Protection Bypass for Automation and Microfrontends (2 projects + 50K routing requests) are available on all plans including Hobby. Confirm your plan before relying on any of these.
 - **Fast-moving surfaces:** Vercel Deployment Protection scopes, Microfrontends pricing/basePath support, and better-auth's URL/cookie internals all changed within the last year; re-check against current docs at implementation time.

@@ -11,7 +11,7 @@ Lab content appears here.
 
 ---
 
-# PART 1 — Domain custody, first and urgent
+## PART 1 — Domain custody, first and urgent
 
 Same shape as the rpID problem: cheap now, expensive later, blocks everything
 downstream.
@@ -58,7 +58,7 @@ Applies to biscuitlab.net too.
 
 ---
 
-# PART 2 — Archive the Wix site properly
+## PART 2 — Archive the Wix site properly
 
 Wix has no meaningful export. There is no clean HTML dump, no markdown, no
 content API for a standard site. Assume everything comes out by hand and budget
@@ -100,7 +100,7 @@ downloaded at full resolution, text in markdown, redirect map written down.
 
 ---
 
-# PART 3 — Positioning (resolved)
+## PART 3 — Positioning (resolved)
 
 Settled in the Portfolio Plan; recorded here because everything downstream
 depends on it.
@@ -157,7 +157,7 @@ written rather than after.
 
 ---
 
-# PART 4 — What Biscuit Lab content appears here
+## PART 4 — What Biscuit Lab content appears here
 
 **Correction from an earlier draft.** A previous version of this plan said "no
 writing on zfertig.com, all posts canonical on biscuitlab.net." That was wrong,
@@ -241,7 +241,7 @@ reinforcing each other, which is the whole reason both exist.
 
 ---
 
-# PART 5 — Build
+## PART 5 — Build
 
 **Stack.** Next.js on Vercel, matching everything else. Static output; there is
 nothing here that needs a server or a database.
@@ -283,7 +283,7 @@ consent banner — and Plausible or Umami for traffic. Skip GA4.
 
 ---
 
-# PART 6 — Sequence
+## PART 6 — Sequence
 
 ## Now — blocks everything
 

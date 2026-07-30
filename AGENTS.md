@@ -120,9 +120,13 @@ hierarchy) to avoid markdown linting errors.
 <!-- BEGIN:testing-rules -->
 ## Testing & Linting
 
-- **Vitest, not Jest** for unit/integration tests — Next.js ships an official
-  Vitest setup guide, it starts faster (no Babel/`ts-jest` transform), and has
-  native ESM support.
+- **Vitest, not Jest** for unit/integration tests **if and when they are
+  added** — Next.js ships an official Vitest setup guide, it starts faster (no
+  Babel/`ts-jest` transform), and has native ESM support. This repo currently
+  ships **no unit tests** (only the Playwright reflow/a11y gate below); a static
+  hub of a few routes rarely needs them. Don't scaffold Vitest until there is
+  real logic to cover — when you do, add `vitest` + config and an
+  `npm test` script, then wire it into CI.
 - **Vitest hybrid environments (AI Pitfall):** Use the `// @vitest-environment
   jsdom` pragma at the top of React UI test files (or `environmentMatchGlobs`).
   Keep the global Vitest environment `node` to prevent `Request` polyfill
@@ -137,8 +141,9 @@ hierarchy) to avoid markdown linting errors.
 - **Mock only at boundaries** (network, external APIs), never internal modules.
 - **Snapshots:** use sparingly — large snapshots get rubber-stamp-approved on
   `--update`. Prefer explicit assertions for anything a human must verify.
-- **Run before concluding:** `npm run lint`, `npx vitest run`, and
-  `npx markdownlint-cli "**/*.md"`. All must pass.
+- **Run before concluding:** `npm run lint`, `npm run typecheck`, and
+  `npx markdownlint-cli "**/*.md"` — plus `npx vitest run` once unit tests
+  exist. All must pass.
 - **The reflow/a11y gate is a blocking check** (see below), not optional polish.
 <!-- END:testing-rules -->
 
