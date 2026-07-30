@@ -344,9 +344,10 @@ records grey-cloud, never proxied. See the runbook §B and
 - [ ] `basePath: '/puzzles'` set; app boots locally at `/puzzles`
       (basePath auto-scopes `/_next/*` in Next 15+ — no `assetPrefix`)
 - [ ] `serverActions.allowedOrigins: ['biscuitlab.net']` on the puzzle app
-- [ ] Rewrite target is a host distinct from `puzzles.biscuitlab.net` — the
-      deployment's own `*.vercel.app` URL suffices; a dedicated
-      `origin-puzzles.biscuitlab.net` is unnecessary extra surface
+- [ ] Rewrite target is a **dedicated custom host `origin-puzzles.biscuitlab.net`**
+      on the puzzle project, with Deployment Protection left ON (safety review §1).
+      The generated `*.vercel.app` alias does NOT work — Standard Protection covers
+      it; custom production domains are exempt. Do NOT disable protection.
 - [ ] Rewrites live; `/puzzles/_next/*` assets resolve
 - [ ] Cookies stay **host-only** — do NOT set `Domain=.biscuitlab.net` (both
       zones share the apex host after cutover; a domain cookie breaks the
@@ -357,11 +358,13 @@ records grey-cloud, never proxied. See the runbook §B and
       rely on Vercel's automatic `noindex` on `*.vercel.app`. A Host-gated
       `X-Robots-Tag` on the origin also fires on the *proxied* response and would
       deindex the public URLs (validation doc §1)
-- [ ] better-auth: `BETTER_AUTH_URL=https://biscuitlab.net/puzzles`, client
-      `baseURL: 'https://biscuitlab.net/puzzles/api/auth'`,
-      `trustedOrigins: ['https://biscuitlab.net']`
-- [ ] `puzzles.biscuitlab.net/*` → `biscuitlab.net/puzzles/*`, 301 permanent
-      (a separate redirect project is cleanest, or `basePath: false` on the rule)
+- [ ] better-auth: `BETTER_AUTH_URL=https://biscuitlab.net` (**origin only** —
+      a path in it breaks the router base), client `basePath: '/puzzles/api/auth'`,
+      `trustedOrigins: ['https://biscuitlab.net']`. Server `basePath` depends on a
+      basePath-strip test — see the auth fix in `Docs/multi-zone-cutover-log.md`.
+- [ ] `puzzles.biscuitlab.net/*` → `biscuitlab.net/puzzles/*`, permanent (308).
+      **Fold into the hub project** (host-conditional `redirects()` with
+      `basePath: false`); a separate redirect project is unnecessary (safety review §4)
 - [ ] Cross-zone links use `<a>`, not `<Link>` — soft navigation breaks across
       zones
 - [ ] Absolute URLs audited: OG images, canonicals, sitemap `loc`, JSON-LD URLs,

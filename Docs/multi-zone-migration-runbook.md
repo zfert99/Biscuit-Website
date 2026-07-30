@@ -39,9 +39,13 @@ Two rules that keep it from breaking:
 
 - **The rewrite target must be a host *distinct* from `puzzles.biscuitlab.net`**
   — otherwise the 301 source and the rewrite target are the same host and you get
-  an infinite redirect loop. The deployment's own **`*.vercel.app` URL suffices**
-  (Vercel auto-`noindex`es it); a dedicated `origin-puzzles.biscuitlab.net` is
-  unnecessary extra surface (validation doc §1).
+  an infinite redirect loop. **CORRECTED (safety review §1): use a dedicated custom
+  host `origin-puzzles.biscuitlab.net` on the Puzzle Lab project, with Deployment
+  Protection left ON.** The generated `*.vercel.app` alias does NOT suffice — it's
+  covered by Standard Protection, so the proxy can't reach it (that's what forced
+  turning protection off, which was the wrong fix). Custom production domains are
+  exempt from Standard Protection, so the proxy reaches the origin host while the
+  generated URL + previews stay locked. See `multi-zone-cutover-log.md` issue #3.
 - **The rpID must already be `biscuitlab.net` before cutover** (see below), or
   passkeys break at the move.
 
@@ -135,13 +139,19 @@ Prereq: **merge Puzzle Lab PR #25** — ✅ done (scopes `trustedOrigins`).
 5. **[PG code]** Cutover PR: `basePath`, `metadataBase=…/puzzles`,
    `serverActions.allowedOrigins`, cron path, `BETTER_AUTH_URL` + client
    `baseURL`, host-only cookies. 🚧 drafted, **not merged**.
-6. **[you · Vercel/console]** The flip: grab Puzzle Lab's `*.vercel.app` URL →
-   set `PUZZLES_ORIGIN` on the hub + `BETTER_AUTH_URL=https://biscuitlab.net/puzzles`
-   on Puzzle Lab; update Google OAuth redirect URI + JS origins.
+6. **[you · Vercel/console]** The flip (CORRECTED — safety review): attach
+   `origin-puzzles.biscuitlab.net` to Puzzle Lab (protection ON) → set
+   `PUZZLES_ORIGIN=https://origin-puzzles.biscuitlab.net` on the hub +
+   `BETTER_AUTH_URL=https://biscuitlab.net` (**origin only** — see the auth fix in
+   `multi-zone-cutover-log.md`) on Puzzle Lab; update Google OAuth redirect URI +
+   JS origins.
 7. **[flip]** Merge the PG cutover PR (deploys `basePath`) → redeploy the hub →
    `biscuitlab.net/puzzles` serves Puzzle Lab.
 8. **[you · DNS]** `puzzles.biscuitlab.net/*` → `biscuitlab.net/puzzles/*`, 301
-   permanent — a separate redirect project is cleanest (or `basePath: false`).
+   permanent. CORRECTED (safety review §4): **fold the redirect into the hub
+   project** — attach `puzzles.biscuitlab.net` to the hub and add a host-conditional
+   `redirects()` rule (`basePath: false`). A separate `puzzles-redirect` project is
+   unnecessary. Vercel issues 308 (SEO-equivalent to 301).
 9. **[hub code]** Flip the project card `href` → `/puzzles` + `crossZone: true`;
    add the sitemap index (§3).
 10. **[you · SEO]** Search Console + Bing on the apex; IndexNow; validate JSON-LD
