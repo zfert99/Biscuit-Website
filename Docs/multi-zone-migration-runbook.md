@@ -30,7 +30,7 @@ Two repos are involved:
 
 ## Architecture
 
-```
+```text
 Browser → biscuitlab.net/puzzles/*  ──rewrite──▶  <PUZZLES_ORIGIN>/puzzles/*   (Puzzle Lab)
 Browser → puzzles.biscuitlab.net/*  ──301────────▶  biscuitlab.net/puzzles/*
 ```
@@ -155,7 +155,7 @@ Prereq: **merge Puzzle Lab PR #25** — ✅ done (scopes `trustedOrigins`).
 9. **[hub code]** Flip the project card `href` → `/puzzles` + `crossZone: true`;
    add the sitemap index (§3).
 10. **[you · SEO]** Search Console + Bing on the apex; IndexNow; validate JSON-LD
-    + rendered canonicals (this is track C).
+    - rendered canonicals (this is track C).
 
 **Gate (the one that matters):** `biscuitlab.net/puzzles` serves the app with
 assets + auth intact, `puzzles.biscuitlab.net` 301s without looping, a passkey

@@ -26,7 +26,7 @@ architecture.
 
 ---
 
-# PART 1 — Corrections
+## PART 1 — Corrections
 
 ## C1. Registrar: not Cloudflare — Porkbun or Spaceship
 
@@ -127,7 +127,7 @@ likely to be copy-pasted from.
 
 ---
 
-# PART 2 — Additions
+## PART 2 — Additions
 
 ## A1. The repo baseline is missing from B0 entirely
 
@@ -254,7 +254,7 @@ It was built for the Pages Router and there are long-standing open issues causin
 
 ---
 
-# PART 3 — Confirmations
+## PART 3 — Confirmations
 
 **The subfolder decision.** Reached independently: subdomains are treated as
 somewhat separate entities and must build authority independently; a subfolder on
@@ -292,7 +292,7 @@ artifacts on zfertig.com.
 
 ---
 
-# PART 4 — One thing that changes the job-hunt sequencing
+## PART 4 — One thing that changes the job-hunt sequencing
 
 The Portfolio Plan leans on real usage numbers: *"Two thousand monthly users is
 concrete in a way personal project never is."* The SEO research prices that
@@ -317,7 +317,7 @@ the portfolio is allowed to promise.
 
 ---
 
-# PART 5 — Revised B0
+## PART 5 — Revised B0
 
 Consolidating everything above that lands before any code:
 

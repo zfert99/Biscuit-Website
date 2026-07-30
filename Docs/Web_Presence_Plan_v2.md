@@ -12,7 +12,7 @@ gets written.
 
 ---
 
-# PART 1 — How the two relate
+## PART 1 — How the two relate
 
 | | zfertig.com | biscuitlab.net |
 |---|---|---|
@@ -37,13 +37,13 @@ rather than showing projects, it is competing with zfertig.com and losing.
 
 ---
 
-# PART 2 — zfertig.com
+## PART 2 — zfertig.com
 
 Structure and full case study copy are in the earlier two documents
 (`Portfolio_Plan` and `Site_Rebuild_Plan`) — that content stands. Summary of the
 information architecture:
 
-```
+```text
 /                    home — positioning + three featured case studies
 /work                case study index
 /work/saga           Saga Education (write this first)
@@ -66,7 +66,7 @@ case study → first `/writing` piece → everything else.
 
 ---
 
-# PART 3 — The URL and hosting pattern
+## PART 3 — The URL and hosting pattern
 
 This section is new and supersedes the old "keep the subdomain pattern"
 guidance.
@@ -76,7 +76,7 @@ guidance.
 **Every Biscuit Lab project lives at a path on the apex domain.** No project
 subdomains.
 
-```
+```text
 biscuitlab.net              project index (the hub)
 biscuitlab.net/puzzles      Puzzle Lab
 biscuitlab.net/log          build logs
@@ -198,7 +198,7 @@ projects, not because it will move anything next month.
 
 ---
 
-# PART 4 — biscuitlab.net, the hub
+## PART 4 — biscuitlab.net, the hub
 
 ## What it's for
 
@@ -214,7 +214,7 @@ Three jobs, in priority order:
 
 ## Structure
 
-```
+```text
 /                    hub — one line of positioning, project cards, log teasers
 /log                 build log index
 /log/[slug]          individual posts
@@ -280,7 +280,7 @@ second portfolio — see Part 1.
 
 ---
 
-# PART 5 — SEO and discoverability
+## PART 5 — SEO and discoverability
 
 ## Set expectations first
 
@@ -452,7 +452,7 @@ months.
 
 ---
 
-# PART 6 — Sequence
+## PART 6 — Sequence
 
 ## Now — one evening, do not defer
 

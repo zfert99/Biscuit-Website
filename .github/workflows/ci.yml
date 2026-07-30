@@ -36,6 +36,11 @@ jobs:
       - name: Lint (incl. jsx-a11y)
         run: npm run lint
 
+      # Enforce the Markdown Linting Rules in AGENTS.md against every doc, using
+      # the repo's .markdownlint.json ruleset. Mirrors the Puzzle Lab CI gate.
+      - name: Markdown lint
+        run: npx markdownlint-cli --ignore node_modules "**/*.md"
+
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 

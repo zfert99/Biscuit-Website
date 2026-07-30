@@ -7,7 +7,7 @@ Sliced B0–B5 with gates. B0–B3 is the afternoon. B4–B5 can follow.
 
 ---
 
-# PART 1 — Scope
+## PART 1 — Scope
 
 ## What it is
 
@@ -46,9 +46,9 @@ Nothing is broken and no passkey was harmed.
 
 ---
 
-# PART 2 — Routes
+## PART 2 — Routes
 
-```
+```text
 /                    hub — positioning line, project cards, recent log
 /log                 build log index
 /log/[slug]          a post
@@ -62,9 +62,9 @@ That is the whole site.
 
 ---
 
-# PART 3 — File structure
+## PART 3 — File structure
 
-```
+```text
 biscuitlab-hub/
 ├── src/
 │   ├── app/
@@ -121,7 +121,7 @@ to want MDX, not on a count.
 
 ---
 
-# PART 4 — Content model
+## PART 4 — Content model
 
 ```ts
 // content/projects.ts
@@ -157,7 +157,7 @@ No `tags`, no `author`, no `draft` — delete the file if it isn't ready.
 
 ---
 
-# PART 5 — Design direction
+## PART 5 — Design direction
 
 The brief is already set by the Puzzle Lab design system doc. This section is
 about **what the hub inherits and what it refuses**, not a new direction.
@@ -247,7 +247,7 @@ Plus `prefers-reduced-motion` respected and real alt text on every screenshot.
 
 ---
 
-# PART 6 — The zfertig.com feed
+## PART 6 — The zfertig.com feed
 
 `app/feed.json/route.ts` returns the three most recent posts as JSON. zfertig.com
 fetches it at build time for the "From the lab" strip.
@@ -272,7 +272,7 @@ build-time fetch is better — but the header costs nothing.
 
 ---
 
-# PART 7 — The multi-zone migration
+## PART 7 — The multi-zone migration
 
 The genuinely fiddly part. Read the whole section before starting.
 
@@ -380,7 +380,7 @@ rpID was moved first — which is the entire reason it goes first.
 
 ---
 
-# PART 8 — SEO surface
+## PART 8 — SEO surface
 
 ## The sitemap index has to be hand-rolled
 
@@ -457,7 +457,7 @@ value is routing for AI coding agents. Revisit in 6–12 months.
 
 ---
 
-# PART 9 — Slices and gates
+## PART 9 — Slices and gates
 
 ## B0 — Prerequisites
 
@@ -528,7 +528,7 @@ failed fetch hides the strip, it does not fail the build.
 
 ---
 
-# PART 10 — Sequencing against everything else
+## PART 10 — Sequencing against everything else
 
 B0 tonight, independent of the rest.
 
@@ -546,7 +546,7 @@ remedy.
 
 ---
 
-# PART 11 — Build decisions (as implemented)
+## PART 11 — Build decisions (as implemented)
 
 Recorded during the build so the plan matches the code. Live progress is in
 `Docs/roadmap.md`; this captures where implementation firmed up or diverged from
