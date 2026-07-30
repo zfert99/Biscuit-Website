@@ -20,6 +20,9 @@ const eslintConfig = defineConfig([
     "next-env.d.ts",
     "playwright-report/**",
     "test-results/**",
+    // Node tooling scripts (not app code); linted for Next/browser rules would flag
+    // Node globals like `process`/`fetch`.
+    "scripts/**",
   ]),
 ]);
 
