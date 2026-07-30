@@ -194,13 +194,17 @@ above).
 
 Remaining after the auth blocker, re-lock, browser verification, and card link cleared:
 
-1. **Per-page canonicals** (top SEO gap). Add `alternates: { canonical: './' }` in
-   the PG root layout; `metadataBase = https://biscuitlab.net/puzzles`. Without it
-   trailing-slash/query variants risk duplicate indexing.
-2. **The 301 — fold into the hub, not a separate project.** Attach
-   `puzzles.biscuitlab.net` to the **hub** project and add a host-conditional
-   `redirects()` rule (`basePath: false`; Vercel issues 308 = SEO-equivalent 301).
-   The `puzzles-redirect` repo is **unnecessary** and can be decommissioned.
+1. **Per-page canonicals** — ✅ **code shipped (PG #34).** `alternates: { canonical:
+   './' }` in the PG root layout; Next resolves it per-route against the (basePath-
+   stripped) pathname + `metadataBase`, so every page self-canonicalizes to its
+   `biscuitlab.net/puzzles/*` URL. Verified live in dev (no double `/puzzles`).
+2. **The 301 (subdomain → subfolder)** — ✅ **code shipped (hub `redirects()`).** A
+   host-scoped `redirects()` rule in the hub's `next.config.ts` sends
+   `puzzles.biscuitlab.net/*` → `biscuitlab.net/puzzles/*` (308, path+query
+   preserved; apex unaffected — verified locally via a spoofed Host header). **User
+   actions remain:** (a) attach `puzzles.biscuitlab.net` to the **hub** Vercel
+   project so requests reach the rule; (b) **decommission** the now-unnecessary
+   `puzzles-redirect` project/repo.
 3. **Confirm hardening** — `serverActions.allowedOrigins=['biscuitlab.net']` (in
    #29) works through the proxy; `next/image` `remotePatterns`/`qualities` (Next 16
    requires both); `CRON_SECRET` returns 401 without the Bearer header.
