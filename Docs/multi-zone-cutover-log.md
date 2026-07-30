@@ -205,12 +205,20 @@ Remaining after the auth blocker, re-lock, browser verification, and card link c
    actions remain:** (a) attach `puzzles.biscuitlab.net` to the **hub** Vercel
    project so requests reach the rule; (b) **decommission** the now-unnecessary
    `puzzles-redirect` project/repo.
-3. **Confirm hardening** — `serverActions.allowedOrigins=['biscuitlab.net']` (in
-   #29) works through the proxy; `next/image` `remotePatterns`/`qualities` (Next 16
-   requires both); `CRON_SECRET` returns 401 without the Bearer header.
-4. **Hub sitemap index** — hand-rolled `app/sitemap.xml/route.ts` listing the hub's
-   own sitemap + `/puzzles/sitemap.xml` (canonical host).
-5. **Track C** — Search Console + Bing on the apex (DNS TXT), IndexNow, analytics.
+3. **Confirm hardening** — ✅ **confirmed.** `CRON_SECRET` → **401** without the
+   Bearer header (verified live). `serverActions.allowedOrigins=['biscuitlab.net']`
+   is set (#29) but PG defines **no** server actions (`'use server'` absent), so
+   there's nothing to exercise — a harmless safeguard. `next/image` is **not used**
+   anywhere in PG, so `remotePatterns`/`qualities` are N/A.
+4. **Cross-zone sitemaps** — ✅ **code shipped.** Chose **Option B** over a
+   hand-rolled index (research: `Docs/research/sitemap-architecture-multi-zone.md`):
+   the puzzle zone ships its own `app/sitemap.ts` → `/puzzles/sitemap.xml` (PG #37,
+   6 curated URLs, no `lastmod`), and the hub's `robots.txt` lists **both** sitemaps
+   (hub PR). An index would collide with Next's `sitemap.ts` special file and adds
+   drift risk for zero crawl benefit at this scale. Auth pages carry `noindex` and
+   are excluded (PG #37). *(Submit both in GSC — track C.)*
+5. **Track C** — Search Console + Bing on the apex (DNS TXT), IndexNow, analytics;
+   submit both sitemaps.
 6. **Ops hygiene** — deploy origin **before** hub for coupled changes (no
    cross-project skew protection); `revalidatePath` is per-project; roll back with
    Vercel Instant Rollback per project; keep the exact config values
