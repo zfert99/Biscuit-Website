@@ -25,12 +25,33 @@ const nextConfig: NextConfig = {
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
+  async redirects() {
+    // Multi-zone 301: the old puzzles.biscuitlab.net subdomain -> the /puzzles
+    // subfolder, path-preserving and permanent (Vercel serves 308, SEO-equivalent
+    // to 301). Scoped by a Host condition so it fires ONLY for that subdomain —
+    // apex (biscuitlab.net) requests fall through to normal serving + the /puzzles
+    // rewrite below. Folded into the hub instead of a separate redirect project
+    // (safety review §4). Source and destination hosts differ, so no redirect loop.
+    // Dormant until puzzles.biscuitlab.net is attached to THIS (hub) Vercel project;
+    // until then no request reaches the hub with that Host, so the rule is a no-op.
+    return [
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "puzzles.biscuitlab.net" }],
+        destination: "https://biscuitlab.net/puzzles/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async rewrites() {
-    // Multi-zone: serve Puzzle Lab under /puzzles by proxying to its own Vercel
-    // deployment. DORMANT until PUZZLES_ORIGIN is set (Phase 3 cutover) — returns
-    // [] today, so this is a no-op. Target is Puzzle Lab's own *.vercel.app URL;
-    // no dedicated origin host is needed (validation doc §1). Both entries are
-    // required — the bare /puzzles path doesn't always match :path*.
+    // Multi-zone: serve Puzzle Lab under /puzzles by proxying to its origin. LIVE in
+    // production — PUZZLES_ORIGIN points at the dedicated custom host
+    // origin-puzzles.biscuitlab.net (Deployment Protection ON; custom domains are
+    // exempt, so the proxy reaches it while the generated *.vercel.app alias stays
+    // locked — safety review §1, correcting the earlier "*.vercel.app is fine" note).
+    // Read at BUILD time, so the hub must be redeployed after PUZZLES_ORIGIN changes;
+    // returns [] (no-op) when unset, e.g. local dev. Both entries are required — the
+    // bare /puzzles path doesn't always match :path*.
     const origin = process.env.PUZZLES_ORIGIN?.replace(/\/$/, "");
     if (!origin) return [];
     return [
