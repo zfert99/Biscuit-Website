@@ -20,9 +20,11 @@ Two repos are involved:
 - **`Puzzle-Generator`** (Puzzle Lab) — the rpID move, `basePath`, and public
   metadata.
 
-> **Status: not started — blocked on 0c.** The rpID move must land and be
-> verified before anything else. Do not begin until Puzzle Lab's security PR #25
-> is merged.
+> **Status (2026-07-29): prerequisites done, cutover pre-staged.** A (rpID move)
+> ✅ and B (DNS / apex serving the hub) ✅ are complete; the dormant hub rewrite +
+> cross-zone card support are merged (step 4); the PG cutover PR is drafted (step
+> 5). What remains is the coordinated flip (set env vars → merge PG cutover →
+> 301) plus track C (Search Console / Bing), which is independent.
 
 ---
 
@@ -119,31 +121,31 @@ exists (Puzzle Lab ships one), replace the hub's auto `sitemap.ts` with a
 
 ## Master sequence (both repos, in order)
 
-Prereq: **merge Puzzle Lab PR #25** (security hardening; already scopes
-`trustedOrigins`).
+Prereq: **merge Puzzle Lab PR #25** — ✅ done (scopes `trustedOrigins`).
 
-1. **[PG code]** Decouple rpID/origin via `PASSKEY_RP_ID` (PG plan §2). Small PR.
-2. **[you · Vercel]** Set `PASSKEY_RP_ID=biscuitlab.net` in Puzzle Lab
-   **production**; redeploy; verify a fresh passkey registers **and**
-   authenticates on `puzzles.biscuitlab.net`. ← the rpID move, on its own.
-3. **[you · DNS]** Registrar + DNS ready (see blocker steps below); add
-   `biscuitlab.net` to the hub's Vercel project.
-4. **[PG code]** Cutover PR: `basePath: '/puzzles'`; `metadataBase =
-   https://biscuitlab.net/puzzles` + per-page canonicals; `serverActions.
-   allowedOrigins: ['biscuitlab.net']`; cron path → `/puzzles/api/cron/daily`;
-   `BETTER_AUTH_URL=https://biscuitlab.net/puzzles` + client
-   `baseURL: '.../puzzles/api/auth'` + `trustedOrigins`; **host-only cookies**
-   (no `.biscuitlab.net`); Google OAuth redirect/origins updated (PG plan §3).
-   The rewrite target is the origin's `*.vercel.app` URL — **no dedicated origin
-   host and no Host-based `noindex`** (validation doc §1).
-5. **[hub code]** Add the rewrite (§1) + set `PUZZLES_ORIGIN` to the origin's
-   `*.vercel.app` URL.
-6. **[you · DNS]** `puzzles.biscuitlab.net/*` → `biscuitlab.net/puzzles/*`, 301
+1. **[PG code]** Decouple rpID/origin via `PASSKEY_RP_ID`. ✅ done (#27).
+2. **[you · Vercel]** `PASSKEY_RP_ID=biscuitlab.net` on Puzzle Lab prod; verify a
+   fresh passkey round-trips. ✅ done. *(Registering one needed the new `/account`
+   page, #28 — the app previously had no passkey-registration UI at all.)*
+3. **[you · DNS]** `biscuitlab.net` serving the hub. ✅ done — the domain is at
+   Cloudflare with **grey-cloud (DNS-only)** records → Vercel, the apex is the
+   hub's primary domain, and `www` → apex. No registrar transfer needed (see §B).
+4. **[hub code]** Dormant `/puzzles` rewrite behind `PUZZLES_ORIGIN` + cross-zone
+   card support. ✅ pre-staged — a no-op until the env var is set.
+5. **[PG code]** Cutover PR: `basePath`, `metadataBase=…/puzzles`,
+   `serverActions.allowedOrigins`, cron path, `BETTER_AUTH_URL` + client
+   `baseURL`, host-only cookies. 🚧 drafted, **not merged**.
+6. **[you · Vercel/console]** The flip: grab Puzzle Lab's `*.vercel.app` URL →
+   set `PUZZLES_ORIGIN` on the hub + `BETTER_AUTH_URL=https://biscuitlab.net/puzzles`
+   on Puzzle Lab; update Google OAuth redirect URI + JS origins.
+7. **[flip]** Merge the PG cutover PR (deploys `basePath`) → redeploy the hub →
+   `biscuitlab.net/puzzles` serves Puzzle Lab.
+8. **[you · DNS]** `puzzles.biscuitlab.net/*` → `biscuitlab.net/puzzles/*`, 301
    permanent — a separate redirect project is cleanest (or `basePath: false`).
-7. **[hub code]** Point the project card at `/puzzles` as a cross-zone `<a>`
-   (§2); add the sitemap index (§3).
-8. **[you · SEO]** Search Console + Bing on the apex; IndexNow; validate JSON-LD
-   + rendered canonicals in the Rich Results Test.
+9. **[hub code]** Flip the project card `href` → `/puzzles` + `crossZone: true`;
+   add the sitemap index (§3).
+10. **[you · SEO]** Search Console + Bing on the apex; IndexNow; validate JSON-LD
+    + rendered canonicals (this is track C).
 
 **Gate (the one that matters):** `biscuitlab.net/puzzles` serves the app with
 assets + auth intact, `puzzles.biscuitlab.net` 301s without looping, a passkey
@@ -163,23 +165,33 @@ too).
 These need account access / a live domain, so they're yours. Detailed
 step-by-step is in this repo's chat handoff and summarized here.
 
-### A. Puzzle Lab rpID move (do first)
+### A. Puzzle Lab rpID move (do first) — ✅ done
 
-1. Merge PG PR #25, then the small `PASSKEY_RP_ID` PR (PG plan §2).
-2. Vercel → Puzzle Lab project → Settings → Environment Variables → add
-   `PASSKEY_RP_ID = biscuitlab.net` (Production). Redeploy.
-3. On `puzzles.biscuitlab.net`: delete any existing passkey, register a new one,
-   sign out, sign back in with it. If that round-trips, the move is done.
+1. Merge PG PR #25, then the `PASSKEY_RP_ID` PR (#27). ✅
+2. Vercel → Puzzle Lab → Environment Variables → `PASSKEY_RP_ID = biscuitlab.net`
+   (Production); redeploy. ✅
+3. Register a passkey via the new `/account` page (#28), sign out, sign back in
+   with it. Round-trips → the move is done. ✅
 
-### B. Registrar + DNS
+### B. Registrar + DNS — ✅ done (and the audit's "not Cloudflare" was too strong)
 
-1. Registrar: keep/transfer `biscuitlab.net` (and `zfertig.com`) at **Porkbun or
-   Spaceship** — **not** Cloudflare Registrar (it forces Cloudflare nameservers;
-   audit C1). If a domain sits at Wix, mind the 60-day ICANN transfer lock.
-2. Delegate the domain's **nameservers to Vercel** (Vercel → Domains → add
-   `biscuitlab.net` → follow the nameserver instructions). **No** Cloudflare
-   proxy in front of Vercel.
-3. Add `biscuitlab.net` to the **hub's** Vercel project as its production domain.
+**Actual state:** `biscuitlab.net` is registered at **Cloudflare**, on Cloudflare
+nameservers, with **grey-cloud (DNS-only)** records that resolve to Vercel's real
+IPs — so Cloudflare is *not* proxying. The apex serves the hub (primary domain on
+the hub's Vercel project) and `www` → apex. This is a supported Vercel setup and
+it's live.
+
+- The audit's C1 concern was the Cloudflare **reverse proxy** (orange-cloud): the
+  redirect loop, masked IPs, double-cache. Grey-cloud avoids all of it. The one
+  hard rule: **keep every `biscuitlab.net` record grey-cloud (DNS-only), never
+  orange (proxied).**
+- No registrar transfer is needed. (It's also impossible right now — the domain
+  was created 2026-06-24, so the 60-day ICANN lock blocks any transfer until
+  ~Aug 23, 2026.) Moving to Porkbun/Spaceship after the lock is optional, not
+  required.
+- Nameserver delegation to Vercel is *not* used (Cloudflare Registrar keeps its
+  own NS) and isn't needed — grey-cloud A/CNAME records → Vercel is the supported
+  alternative.
 
 ### C. Search Console, Bing, analytics (can run in parallel)
 

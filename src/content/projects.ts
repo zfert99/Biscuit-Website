@@ -13,6 +13,12 @@ export type Project = {
   contains?: string[];
   /** Internal path, or an external URL for off-hub projects. */
   href: string;
+  /**
+   * Set when `href` targets a different Next zone (e.g. the `/puzzles` multi-zone
+   * rewrite). Cross-zone links must be a hard-nav `<a>`, not `next/link` — soft
+   * navigation/prefetch breaks across zones (validation doc §2c).
+   */
+  crossZone?: boolean;
   status: ProjectStatus;
   /** Path under /public. */
   screenshot: string;

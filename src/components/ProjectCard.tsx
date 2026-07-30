@@ -8,7 +8,12 @@ import styles from "./ProjectCard.module.css";
  * sits on the corner as the single off-square element (see StatusStamp).
  */
 export function ProjectCard({ project }: { project: Project }) {
-  const isExternal = project.href.startsWith("http");
+  // A hard-nav <a> is needed for external URLs AND cross-zone paths (soft nav
+  // breaks across Next zones). Only truly external sites open in a new tab —
+  // a cross-zone path like /puzzles is still "our site", so it stays same-tab.
+  const isExternalUrl = project.href.startsWith("http");
+  const hardNav = isExternalUrl || project.crossZone === true;
+  const opensNewTab = isExternalUrl && !project.crossZone;
 
   const inner = (
     <>
@@ -44,12 +49,11 @@ export function ProjectCard({ project }: { project: Project }) {
     </>
   );
 
-  return isExternal ? (
+  return hardNav ? (
     <a
       className={styles.card}
       href={project.href}
-      target="_blank"
-      rel="noreferrer"
+      {...(opensNewTab ? { target: "_blank", rel: "noreferrer" } : {})}
     >
       {inner}
     </a>
