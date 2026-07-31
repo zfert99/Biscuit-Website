@@ -6,7 +6,14 @@ import { test, expect } from "@playwright/test";
  * merge. See AGENTS.md — Accessibility & Performance Floor.
  */
 const WIDTHS = [320, 375, 768, 1024, 1440];
-const PATHS = ["/", "/log", "/log/ksudoku-source-vs-docs"];
+const PATHS = [
+  "/",
+  "/log",
+  "/log/ksudoku-source-vs-docs",
+  // Carries the widest content on the site — a 6-column data table plus three
+  // figures — so it is the post most likely to break reflow.
+  "/log/no-hard-4x4-killer-sudoku",
+];
 
 for (const path of PATHS) {
   for (const width of WIDTHS) {
