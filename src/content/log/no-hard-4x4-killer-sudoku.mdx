@@ -1,0 +1,176 @@
+---
+title: There's no such thing as a hard 4×4 Killer Sudoku
+date: 2026-07-31
+summary: Shrinking Puzzle Lab's daily from 30 boards to 6 meant building a tiny Killer Sudoku — and measuring 16,000 of them showed the difficulty lever I rely on at 9×9 has nothing to push against at 4×4.
+project: puzzles
+---
+
+import Image from 'next/image'
+
+Puzzle Lab's daily had gotten out of hand. Three puzzle types, each with a full
+difficulty ladder, each at three grid sizes — **30 generated boards every night**.
+Thirty leaderboards, most of them empty, because a small player base spread across
+thirty boards is nobody on any of them. A daily is supposed to be a ritual with a
+clear win condition, not a menu.
+
+So the plan was to invert it: instead of publishing every combination, publish
+**one board per puzzle type** and let the *difficulty* be the thing that rolls
+each day. Three types today, so three standard boards plus three small ones. Six
+instead of thirty.
+
+That plan has an obvious requirement hiding in it. If every type gets a small
+board, then every type needs to *have* a small board. Classic and Keisan already
+did. Killer Sudoku didn't — its minis stopped at 6×6.
+
+Fine, I thought. The engine is size-generic. The exact solver already runs on
+4-digit grids, the combination tables already ship a 4×4 set. This is a config
+entry, not an engine. Half a day, tops.
+
+## Measuring before building
+
+I've been burned enough by "this should be easy" that I now spike before I commit.
+The spike was crude on purpose: generate a few thousand 4×4 Killer layouts across
+four different cage-shape configurations, keep the ones with a unique solution,
+and run each through the logical solver to find the **minimum technique tier**
+that cracks it. If the tiers spread out, I build three difficulties. If they
+don't, I find out now instead of after the UI is wired up.
+
+Four configs, 4,000 attempts each. The result was not ambiguous:
+
+| cage sizes | unique-solution rate | median 1-cell cages | tier 1 | tier 2 | tier 3 |
+|---|---|---|---|---|---|
+| 1–2 | 72.3% | 6 | **100%** | 0% | 0% |
+| 1–3 | 45.8% | 4 | **99.2%** | 0.3% | 0.5% |
+| 2–2 | 14.5% | **0** | **100%** | 0% | 0% |
+| 2–3 | 27.9% | 1 | **96.9%** | 0.7% | 2.4% |
+
+Tier 2 and tier 3 combined never cracked 3%, in any configuration. The difficulty
+scores clustered in a band so narrow — medians of 3 to 5, on a scale where a 9×9
+expert scores 120+ — that "medium" and "hard" wouldn't have been distinguishable
+to a player even if I'd forced them out by rejection sampling.
+
+Puzzle Lab grades Killer with a two-factor score (weighted technique frequency ×
+opportunity density), and the 9×9 generator cuts its tiers at 42, 62 and 90. Put
+the 4×4's entire measured range on that same axis and the problem is hard to
+miss:
+
+<Image
+  src="/log/killer-score-scale.png"
+  alt="A difficulty-score scale from 0 to 130. The 9×9 Killer tier bands are marked along it: easy from 0 to 42, medium 42 to 62, hard 62 to 90, and expert or extreme above 90. Below it, the entire measured range for 4×4 Killer is a short bar spanning only 0 to 16, sitting inside the lower part of the easy band."
+  width={1800}
+  height={696}
+/>
+
+Every 4×4 layout I generated — across all four cage configurations — scores below
+16. The 9×9 ladder doesn't even reach its *easy* cut until 42. There is no room
+down there to put three tiers.
+
+<aside>
+
+**One thing I nearly got wrong.** My first draft of this post crowed that tiers 4
+and 5 came back at exactly zero — *not rare, absent*. It's true, and it's also
+meaningless: my solver has a line reading `if (technique.tier >= 4 && this.size
+!== 9) break`, which gates every tier-4-and-up technique (X-Wing, Swordfish,
+Y-Wing, the ALS and chain stuff) to 9×9 grids. They never ran. I'd have been
+reporting my own configuration back to myself as though it were a discovery. The
+table above is only the range the solver actually attempts.
+
+</aside>
+
+Generation itself was fast and reliable — about 0.15 ms per puzzle. The problem
+wasn't that I couldn't make them. It's that they were all the same puzzle
+wearing different numbers.
+
+## I had a lever. I pulled it all the way. Nothing moved.
+
+Here's the part I find genuinely interesting, and it's the third row of that table.
+
+Killer Sudoku's difficulty levers are all about **cage shape**. The strongest by
+far is the number of **single-cell cages**: a 1-cell cage with a `3` in the corner
+isn't really a cage, it's a given wearing a disguise. My 9×9 ladder rides on
+exactly this — easy gets a budget of 12 of them, medium 4, hard 1. Strip the
+givens, force real deduction. That's the dial.
+
+So at 4×4 I pulled the same dial to its stop. That's the `2–2` and `2–3` rows:
+minimum cage size of two, meaning **zero** intentional single-cell cages.
+
+The difficulty didn't move. Zero givens, still 100% tier-1.
+
+Here's the generator doing it — eight consecutive rolls, alternating between the
+shipped easy config and layouts with every single-cell cage stripped out. The
+tier readout is the solver's actual grade, not a label I typed:
+
+<Image
+  src="/log/killer-4x4-all-tier-1.gif"
+  alt="An animation cycling through eight different generated 4×4 Killer Sudoku boards. Each frame shows the board, the number of single-cell cages it contains (ranging from six down to zero), and the tier the logical solver graded it at — which stays at tier 1 throughout."
+  width={560}
+  height={380}
+  unoptimized
+/>
+
+That's the finding. It isn't that Killer lacks a difficulty lever — it has one,
+and it's a good one. It's that at 4×4 the lever has **nothing to push against**.
+Sixteen cells and digits 1–4 leave so little arithmetic ambiguity that the sums
+alone collapse the grid to single-candidate logic no matter how you shape the
+cages. You can remove every crutch and the puzzle is still easy, because it was
+never the crutches making it easy.
+
+Compare that to the two types that *do* keep three tiers at 4×4, and you can see
+what they have that Killer doesn't. Classic grades by removing givens — and a
+4×4 classic has sixteen cells of givens to play with, an actual budget. Keisan
+(Calcudoku) grades substantially by its **operator palette**: its easy tier uses
+only `+`, `−`, `÷`, while medium and hard open up `×`, which drags in
+prime-factorization reasoning that genuinely changes how you think. Neither of
+those levers depends on the grid being big.
+
+Here's the same engine's output at both sizes — the 4×4 easy beside a 9×9 expert:
+
+<Image
+  src="/log/killer-4x4-vs-9x9.png"
+  alt="Two Killer Sudoku boards side by side, rendered from the generator. The 4×4 on the left has ten small cages with sums from 1 to 8, several of them single cells. The 9×9 on the right has large sprawling cages that cross box boundaries, with sums up to 25."
+  width={1444}
+  height={952}
+/>
+
+The expert board's cages sprawl across box boundaries with sums into the twenties
+— that's where the ambiguity lives, and that's what the hard techniques exist to
+resolve. The 4×4 simply has nowhere to put that.
+
+Which, in hindsight, is the same story the 6×6 Killer ladder already told me — it
+stops at "hard," and the full five-tier ladder is 9×9-only. I'd read that as a
+tuning limit at the time. It wasn't. It was the shape of the thing.
+
+## What I actually built
+
+Killer 4×4 ships with **one difficulty: easy.** That's the honest label, so
+that's the label.
+
+The alternative was manufacturing a "medium" out of that sub-3% tier-2 band —
+slow rejection sampling to produce a puzzle barely distinguishable from easy, with
+a name that overpromises. That's a worse product than not having the tier.
+
+The consequence landed in the daily's selection logic instead. The roller that
+picks each day's boards now carries an **eligibility table**, and it builds the
+day's assignment by enumerating every valid type-to-slot arrangement and choosing
+uniformly among *those* — rather than rolling first and retrying on failure. So
+Killer can take the easy 4×4 slot or any 6×6 slot, and it simply never gets
+offered the medium and hard 4×4 ones. A valid arrangement always exists, because
+Classic and Keisan cover the slots Killer can't. The constraint is satisfied by
+construction, not by retry.
+
+The daily is six boards now. It rolls tonight for the first time.
+
+## The part I keep relearning
+
+The reason I ran a throwaway spike instead of just writing the config is that the
+cost of being wrong was asymmetric. Building it first would have meant a
+generator, a registry entry, tests, and UI — and *then* discovering the tiers were
+fake, with a sunk cost quietly arguing for shipping a dishonest "hard" anyway.
+
+Three hours of measurement turned a planned three-tier feature into a one-tier
+feature and made the surrounding system simpler, because "Killer is easy-only at
+4×4" is a constraint the selection logic can be built *around* rather than a
+disappointment to paper over.
+
+Difficulty needs a lever. Small grids starve the levers. That's worth knowing
+before you write the code, not after.

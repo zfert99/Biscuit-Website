@@ -65,7 +65,10 @@ const withMDX = createMDX({
   options: {
     // String form is required for Turbopack (Next 16 default). remark-frontmatter
     // parses and strips the YAML block so it doesn't render as content.
-    remarkPlugins: ["remark-frontmatter"],
+    // remark-gfm adds GitHub-flavoured markdown — most importantly TABLES, which
+    // plain CommonMark does not support: without it a pipe table silently collapses
+    // into one run-on paragraph. Also brings strikethrough, autolinks and footnotes.
+    remarkPlugins: ["remark-frontmatter", "remark-gfm"],
   },
 });
 

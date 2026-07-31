@@ -79,3 +79,58 @@
   padding: 0.1em 0.35em;
   border-radius: var(--r-sm);
 }
+
+/* Tables (remark-gfm). A data table can't reflow to 320px without becoming
+   unreadable, so it scrolls inside its OWN region rather than pushing the page
+   wide — the reflow gate (e2e/reflow.spec.ts) forbids document-level horizontal
+   overflow at every breakpoint. */
+.prose table {
+  display: block;
+  overflow-x: auto;
+  max-width: 100%;
+  margin: 1.5rem 0;
+  border-collapse: collapse;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.prose th,
+.prose td {
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+  white-space: nowrap;
+  border-bottom: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+}
+
+.prose thead th {
+  font-weight: 700;
+  font-size: 0.82rem;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  color: var(--ink-soft);
+  border-bottom-width: 2px;
+}
+
+.prose tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* First column is the row's label — anchor it so a scrolled table stays readable. */
+.prose tbody td:first-child {
+  font-family: var(--font-mono), ui-monospace, monospace;
+  font-weight: 700;
+}
+
+/* Aside — used for corrections/caveats set apart from the main argument. */
+.prose aside {
+  margin: 1.75rem 0;
+  padding: 1rem 1.15rem;
+  background: var(--paper-2);
+  border-left: 3px solid var(--grape);
+  border-radius: var(--r-sm);
+  font-size: 0.96rem;
+}
+
+.prose aside p:first-child {
+  margin-top: 0;
+}
