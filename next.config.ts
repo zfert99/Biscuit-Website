@@ -41,6 +41,14 @@ const nextConfig: NextConfig = {
         destination: "https://biscuitlab.net/puzzles/:path*",
         permanent: true,
       },
+      // A log post's filename IS its URL, so retitling one moves it. This post was published,
+      // sitemapped and briefly live under its original slug before being renamed, so the old URL
+      // gets a permanent redirect rather than a 404. Add an entry here for any future rename.
+      {
+        source: "/log/idempotent-until-i-made-it-random",
+        destination: "/log/one-column-four-jobs",
+        permanent: true,
+      },
     ];
   },
   async rewrites() {

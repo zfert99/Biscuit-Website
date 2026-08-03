@@ -13,7 +13,7 @@ const PATHS = [
   // Carries the widest content on the site — a 6-column data table plus three
   // figures — so it is the post most likely to break reflow.
   "/log/no-hard-4x4-killer-sudoku",
-  "/log/idempotent-until-i-made-it-random",
+  "/log/one-column-four-jobs",
 ];
 
 for (const path of PATHS) {
