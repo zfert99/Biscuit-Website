@@ -1,0 +1,185 @@
+---
+title: My cron was idempotent until I made one input random
+date: 2026-08-03
+summary: Cutting Puzzle Lab's daily from 30 boards to 6 meant one database column stopped meaning what it used to. The unique index I was relying on didn't change — but it quietly stopped protecting anything.
+project: puzzles
+---
+
+import Image from 'next/image'
+
+Puzzle Lab's daily had turned into a wall. Three puzzle types, each with a full
+difficulty ladder, each at up to three grid sizes: **30 generated boards every
+night**, and therefore thirty leaderboards. With a player base my size, thirty
+leaderboards means nobody on any of them. That's not a daily ritual, that's a
+drop-down menu.
+
+The fix I landed on inverts the axes. Instead of publishing every combination,
+publish **one board per puzzle type** and let the *difficulty* be the thing that
+rolls each day. Three types today, so three standard boards plus three small
+ones. Six instead of thirty, and every board has company on its leaderboard.
+
+<Image
+  src="/log/daily-30-to-6.png"
+  alt="Two panels. The left, labelled before, shows thirty daily board keys such as killer-hard, calc9-easy and mini6-medium packed into a dense grid. The right, labelled after, shows six boards: Hard Killer, Expert Keisan, Extreme Classic, and three minis."
+  width={1760}
+  height={880}
+/>
+
+The product decision took a minute. Everything downstream of it came down to one
+string.
+
+## One column was doing four jobs
+
+Every daily row keys off `daily_puzzles.difficulty`. Here's what lived in it:
+`easy`, `killer-hard`, `calc9-extreme`, `mini6-medium`.
+
+Look at those and you can see the problem I'd been walking past for months. That
+column was simultaneously:
+
+1. the **idempotency handle** — `UNIQUE(date, difficulty)` is what makes the
+   generation cron safe to re-run,
+2. the **API parameter** — `/api/daily?difficulty=killer-hard`,
+3. the **leaderboard identity** — one board, one ranked table, and
+4. the **puzzle type** — because `killer-hard` *says* Killer right there in the
+   string.
+
+Nobody designed job 4. It arrived by convenience: when you add Killer, naming the
+key `killer-hard` is the obvious thing to do, and then reading the type back out
+of the key is free. Three types later it's load-bearing infrastructure that
+exists entirely in a naming convention.
+
+<Image
+  src="/log/overloaded-key.png"
+  alt="A diagram. On the left, the single string killer-hard has four arrows pointing out of it, labelled idempotency handle, API parameter, leaderboard identity, and puzzle type, with the fourth marked as accidental. On the right, the restructured version shows the key hard carrying the first three jobs while a separate variant column carries the type."
+  width={1800}
+  height={860}
+/>
+
+The whole point of the restructure is that a slot's **type varies by day** — today
+`hard` is Killer, tomorrow it's Keisan. The moment that's true, job 4 is not just
+obsolete, it's *actively wrong*: anything still parsing the type out of the key
+gets a confident, incorrect answer.
+
+## Three readers, three different silent failures
+
+Grepping for who depended on job 4 turned up three, and what I found interesting
+is that they'd have failed in three unrelated ways — none of them loudly.
+
+- **The serve route** used the key to decide how to interpret stored cages. Killer
+  cages carry a sum; Keisan cages carry an operator and a target. Guess wrong and
+  the board renders as nonsense.
+- **The anti-cheat floor** used the key to look up a minimum plausible solve time.
+  Guess wrong and a 6×6 mini gets validated against a 9×9 expert's threshold, or
+  the lookup misses entirely and falls through to a permissive default.
+- **The bot's time** used the key to pick how long "Puzzle Bot" should appear to
+  have taken. Guess wrong and it posts a nine-by-nine time on a four-by-four.
+
+So the fix was a stored `variant` column, backfilled across every historical row,
+and all three readers cut over to it **in the same change**. That's why this
+couldn't be a small PR: you can't land the roller and migrate the readers
+separately without shipping a day of broken boards in between.
+
+The migration itself had a wrinkle worth mentioning. My ORM generated exactly what
+you'd expect for a new non-null column:
+
+```sql
+ALTER TABLE "daily_puzzles" ADD COLUMN "variant" text NOT NULL;
+```
+
+Which fails immediately on a table that already has rows, because there's no
+default and existing rows have nothing to put there. The version I hand-wrote adds
+it nullable, backfills every historical key pattern to its type, and only then
+applies the constraint — where `SET NOT NULL` doubles as the assertion that the
+backfill was exhaustive. If any key had escaped my patterns, the migration aborts
+instead of leaving me with silent nulls.
+
+## It shipped. Three clean days.
+
+Then I went and looked at what the cron had actually produced.
+
+Three consecutive nights, six boards each, every invariant holding: three distinct
+difficulty rungs, three distinct types, minis sized correctly, bot times matching
+their tuning table exactly. `hard` was Classic on the first night, Keisan on the
+second, Killer on the third — the randomisation genuinely varying rather than
+getting stuck.
+
+I was pleased with myself for about four minutes, which is how long it took to
+notice the row count on the changeover date.
+
+**Thirty-three.**
+
+## The number I'd looked straight at, twice
+
+Six plus thirty is thirty-six, not thirty-three, so this wasn't simply "old and
+new both ran." What happened is that the first post-deploy run rolled its six
+slots against a date that already held the old thirty. Three of the rolled keys
+were standard rungs like `hard`, which already existed, so they hit the unique
+constraint and were skipped. But the three mini slots used brand-new key names —
+`mini-easy`, `mini-medium`, `mini-hard` — which had never existed before. Nothing
+to collide with. Straight in.
+
+I had looked at that 33 twice during the rollout and explained it away both times
+as expected cutover overlap. It wasn't. It was the bug leaving a receipt.
+
+Here's the part I think is genuinely worth the post. My idempotency came from this:
+
+```ts
+.insert(dailyPuzzles).values(rows)
+.onConflictDoNothing({ target: [dailyPuzzles.date, dailyPuzzles.difficulty] })
+```
+
+That code is unchanged. The unique index is unchanged. **What changed is that the
+set of keys stopped being deterministic.**
+
+Under the old registry, every run produced the same thirty keys, so a second run
+collided on all thirty and did nothing. That's real idempotency. Under the roller,
+a second run draws *different* rungs — and different keys don't collide, so they
+insert cleanly alongside the first run's. Run the cron twice and you don't get the
+same day back. You get a day with eight or ten boards, two of them the same puzzle
+type, and an archive "you solved 4 of 6" denominator that's now a lie.
+
+The constraint never protected me from duplicate *work*. It only ever protected me
+from duplicate *keys*. Those were the same thing right up until the keys became
+random, and then they silently weren't.
+
+That's the transferable bit, I think: `ON CONFLICT DO NOTHING` is only an
+idempotency guarantee when the thing generating the conflict keys is
+deterministic. Randomise the input and you've still got a uniqueness constraint —
+just not the safety property you thought you were buying with it.
+
+## The fix, and what actually caught it
+
+The repair is boring, which is usually a good sign. Before rolling anything, ask
+whether the date already has boards; if it does, return early and touch nothing.
+The batch insert is a single statement, so a day is always either empty or
+complete, which means probing for one row is enough.
+
+Worth keeping the bot-solve seeding running on that early-return path, though —
+that half *is* genuinely idempotent, and re-running it backfills any board whose
+bot entry went missing. The useful part of a retry survives; the destructive part
+doesn't.
+
+I got to verify the fix in the most satisfying way available. I needed to apply an
+unrelated rename to production anyway, and the only thing that writes that row is
+the generation path — so running it against the live database exercised the new
+guard on real data:
+
+```text
+daily_generate_skipped   ->  roll refused
+today_rows:  6 -> 6      ->  no extra boards
+bot_name:    Sudoku Bot -> Puzzle Bot
+```
+
+Before the fix, that same command would have quietly pushed the day to eight or
+nine boards.
+
+None of this was caught by the test suite, which was green the whole time — and it
+would have stayed green, because every test I had asserted on a *single* run.
+Nothing exercised "run it twice on a populated day," because under the old design
+that question had an obvious answer. The assumption was so safe it never got a
+test, and it stopped being safe without anything failing.
+
+What caught it was going and looking at the rows the thing had actually written,
+three days after shipping. I don't have a clever process to recommend here. Just:
+after a change lands, go read what it produced in production, and treat a number
+you have to explain away as a bug until proven otherwise.
