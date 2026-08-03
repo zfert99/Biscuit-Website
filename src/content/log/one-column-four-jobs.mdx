@@ -1,7 +1,7 @@
 ---
-title: My cron was idempotent until I made one input random
+title: One column was doing four jobs
 date: 2026-08-03
-summary: Cutting Puzzle Lab's daily from 30 boards to 6 meant one database column stopped meaning what it used to. The unique index I was relying on didn't change — but it quietly stopped protecting anything.
+summary: Cutting Puzzle Lab's daily from 30 boards to 6 meant one database column stopped meaning what it used to — and a safety net I'd relied on quietly stopped catching anything.
 project: puzzles
 ---
 
@@ -28,7 +28,7 @@ ones. Six instead of thirty, and every board has company on its leaderboard.
 The product decision took a minute. Everything downstream of it came down to one
 string.
 
-## One column was doing four jobs
+## The string that was secretly four things
 
 Every daily row keys off `daily_puzzles.difficulty`. Here's what lived in it:
 `easy`, `killer-hard`, `calc9-extreme`, `mini6-medium`.
