@@ -1,0 +1,228 @@
+---
+title: Thirteen hours, no error
+date: 2026-08-07
+summary: A security fix I'd reported as a win quietly killed my daily puzzle generation, and it left no trace anywhere — finding out why made me measure what my multi-zone architecture actually costs.
+project: puzzles
+---
+
+import Image from 'next/image'
+
+Puzzle Lab generates a fresh set of daily boards every night at midnight UTC. On
+7 August it generated nothing. For about thirteen and a half hours, anyone
+visiting `/daily` got "No daily puzzle for 2026-08-07 yet."
+
+There was no failed job to look at. No error in the logs, no alert, no red mark
+anywhere. The endpoint that does the generating was perfectly healthy the entire
+time — I checked, and it answered correctly on demand. There was simply no
+record that anything had tried to call it.
+
+That combination — broken *and* invisible — turned out to be two separate
+properties of the same platform behaviour, and I think the second one is more
+interesting than the first.
+
+## The setup, briefly
+
+Puzzle Lab lives at `biscuitlab.net/puzzles`, but it isn't part of the site
+that serves `biscuitlab.net`. It's a separate Next.js app on its own deployment,
+and the hub proxies `/puzzles/*` across to it — a Next.js **multi-zone** setup.
+
+I chose that for search reasons. Subdomains accumulate authority separately; a
+subfolder on the apex consolidates it, and with more projects planned I wanted
+them all compounding into one domain instead of four starting from zero. I wrote
+down at the time that I expected no ranking bump from the move itself — the
+domain was three weeks old and had no authority to consolidate. The bet was on
+compounding later.
+
+For the proxy to work, the hub has to be able to reach the puzzle app. So the
+puzzle app has a second hostname, `origin-puzzles.biscuitlab.net`, that exists
+only to be proxied to.
+
+## The fix that broke it
+
+A security review of that arrangement had flagged, quite correctly, that the
+puzzle app's auto-generated Vercel URL was publicly reachable. Its top
+recommendation was to turn Deployment Protection back on, which locks that
+generated URL behind Vercel SSO while leaving custom domains — including the
+origin host the proxy needs — open.
+
+I turned it on. I noted it in the project log as mitigation #1, closed. It was
+the right change and it's still on today.
+
+The next night, generation stopped.
+
+## Why it broke, and why nothing said so
+
+Vercel triggers a cron by making an HTTP request to your project's **generated
+production URL**. Not your custom domain — the `*.vercel.app` one. Their docs
+are explicit about what protection does to it:
+
+> When you enable Standard Protection, the production generated deployment URL
+> becomes restricted.
+
+So the nightly request started getting a `302` to Vercel's SSO page instead of
+reaching my route. Which brings us to the two sentences that explain the whole
+incident:
+
+> Cron jobs do not follow redirects. When a cron-triggered endpoint returns a 3xx
+> redirect status code, the job completes without further requests.
+
+That's the breakage. The disappearance is a separate line, a few paragraphs
+further down the same page:
+
+> When cron jobs respond with a redirect or a cached response, they will not be
+> shown in the logs.
+
+The first sentence broke the job. The second one hid it. A redirected invocation
+isn't a *failure* as far as the platform is concerned — the request completed,
+it just completed at a login page — so there's nothing to report, and it doesn't
+even get a log line. My dashboard wasn't showing a problem because, by the
+platform's definition, nothing had gone wrong.
+
+## Finding it took a second front door
+
+I pulled three days of runtime logs filtered to the cron's path, and the shape of
+what came back was the answer:
+
+```text
+2026-08-05 00:53:59   200   puzzle-generator-….vercel.app
+2026-08-06 00:54:24   200   puzzle-generator-….vercel.app
+2026-08-07 00:00–00:59   —   nothing at all
+```
+
+Two things fall out of that. Every run that *had* worked came in on the
+`*.vercel.app` host — direct proof of which URL Vercel actually calls, which
+until then I'd only assumed. And the 7th has no entry of any kind. Not a 401,
+not a 500. An absence, which is exactly what a redirect leaves behind.
+
+But an absence is also what a platform hiccup leaves behind, and I couldn't tell
+those apart from the log alone. What separated them was hitting the same
+deployment through different hostnames:
+
+```text
+origin-puzzles.biscuitlab.net/puzzles/api/cron/daily   401   reachable, auth guard working
+biscuitlab.net/puzzles/api/cron/daily                  401   same
+puzzle-generator-….vercel.app/puzzles/api/cron/daily   302   → vercel.com/sso-api
+```
+
+Same code, same deployment, three doors. Two of them open, one of them locked —
+and the locked one is the only one the scheduler knocks on.
+
+<Image
+  src="/log/three-front-doors.png"
+  alt="A diagram titled Same code, three front doors. All three hostnames reach the same route, /puzzles/api/cron/daily. The proxy origin host origin-puzzles.biscuitlab.net returns 401, reachable, auth guard working. The public custom domain biscuitlab.net/puzzles returns 401, the same answer through the hub's rewrite. The generated Vercel URL, marked with a padlock, returns 302, redirected to vercel.com/sso-api by Deployment Protection. A note reads: the scheduler only ever knocks on the third one."
+  width={1800}
+  height={1060}
+/>
+
+That's the transferable bit, I think. When a system is failing and the logs are
+empty, the useful question isn't "what else can I read?" but "**is there another
+way in?**" A second entry point turns an unanswerable question into a one-line
+diff. I'd been staring at logs for twenty minutes; the probe took ten seconds.
+
+## The fix, and the part I'd been missing
+
+Generation now runs from a scheduled GitHub Action that calls the *custom*
+domain, which protection doesn't touch. Authorization didn't change at all — the
+endpoint has always verified a shared secret in constant time, and that check,
+not the caller's identity, was always the real guard. Whether Vercel or GitHub
+makes the request is irrelevant to it.
+
+But moving the trigger isn't the interesting part. This is:
+
+```yaml
+- name: Verify the day actually has boards
+  run: |
+    count=$(curl -s ".../api/daily/slots?date=$ISO_DATE" | grep -o '"key":' | wc -l)
+    if [ "$count" -lt 1 ]; then
+      echo "::error::$ISO_DATE has no daily boards after generation"
+      exit 1
+    fi
+```
+
+The old setup could only tell me whether the call was *made*. This checks whether
+the day actually has puzzles in it. Those are different questions, and for
+thirteen hours the answer to the second one was no while the first one wasn't
+being asked.
+
+**A scheduler that can fail silently needs an assertion, not a status code.** If
+I'd had those four lines in January, this would have been a red build at 00:08
+instead of a discovery in the afternoon.
+
+<Image
+  src="/log/cron-assertion.png"
+  alt="A before-and-after diagram. Before, with Vercel Cron scheduled at 00:00 UTC: the cron fires at the project's generated production URL, gets a 302 to SSO because Deployment Protection restricts that URL, and the job completes — crons don't follow redirects, and a redirected run gets no log line — so the route is never reached despite being healthy. Result: thirteen and a half hours of no daily puzzle, with no failure, alert or log entry. After, with GitHub Actions at 00:07 UTC: a scheduled workflow with a manual trigger calls the custom domain, which is exempt from protection, the route generates using the same shared-secret check as before, and a final step asserts the day's boards exist, where zero is a red build. Result: silence now means success."
+  width={1800}
+  height={1328}
+/>
+
+There's a second lesson in it that stings a bit more: when you close a security
+gap, audit what was reaching through it. Locking that URL was correct. What I
+didn't do was ask what depended on it being open — and the answer was written
+down in my own research doc a week earlier, in a sentence noting that Vercel
+crons hit the generated URL rather than the custom domain. I had the fact. I just
+never connected it to the thing I was about to change.
+
+## So was the architecture worth it?
+
+That's the question the outage really raised, so I went and measured it instead
+of arguing about it. The multi-zone split costs, in this codebase:
+
+- **12 files** touching `basePath` or the helper it needs
+- **33 lines** of `base-path.ts`, a shim that exists purely because `fetch()`
+  doesn't know about `basePath` and every client-side API call would 404 without
+  it — which is exactly how the *first* one of these bugs went
+- **9 lines** of auth config devoted to reconciling the path prefix with
+  WebAuthn and OAuth redirect URIs
+- a second Vercel project, a dedicated origin hostname, and a hub rewrite whose
+  target is baked in at build time, so the hub needs redeploying whenever it
+  changes
+
+Then I went back to the Next.js multi-zones documentation and actually read what
+it's *for*: reducing build times on a large app, letting you drop code that only
+one zone needs, and letting separate teams pick different frameworks.
+
+I have one framework, one design system, one small app, and one developer. I have
+none of the problems multi-zones solves. I'd been keeping it because it works,
+which is not the same as it earning its place.
+
+<Image
+  src="/log/multi-zone-cost.png"
+  alt="A diagram of the split. A visitor asks for /puzzles, which reaches biscuitlab.net — Vercel project one, the hub — which rewrites server-side to origin-puzzles.biscuitlab.net, Vercel project two, a host that exists only to be proxied to, with the rewrite target baked in at build time. The price, counted: 12 files touching basePath, 33 lines of base-path.ts, 9 lines of auth config for WebAuthn and OAuth redirect URIs, plus a second Vercel project, a dedicated origin host, split logs, version skew, and a hub redeploy whenever the origin changes, plus two outages around the seam. Against that, what Next says multi-zones is for — reducing build times, dropping code only one zone needs, and letting separate teams pick different frameworks — is marked as three misses. What it does buy honestly: independent deploys, so a bad Puzzle Lab release can't take the hub down with it."
+  width={1800}
+  height={1368}
+/>
+
+## The honest case for tearing it out — and why I haven't
+
+Collapsing the two apps into one would delete every line in that list at once.
+The URLs wouldn't change, so there's no SEO event. Passkeys would survive
+untouched — the WebAuthn relying-party ID is host-and-scheme only, with no path
+component, so moving where the app mounts doesn't touch it. Sessions would
+survive too, because the cookie is `__Host-`-prefixed, which *guarantees*
+`Path=/`. A merge is mostly config hygiene, not migration danger. It'd even make
+navigating from the hub into the puzzles a soft navigation instead of a full page
+reload.
+
+Estimated cost: eight to fourteen hours, most of the risk concentrated in one
+pull request.
+
+I'm not doing it. Not this month.
+
+It fixes nothing a single visitor would notice. It clears no bar the project
+hasn't already cleared. And it is precisely the kind of work that *feels*
+productive — tidy, architectural, satisfyingly conclusive — while producing
+nothing anyone else can see. My own notes call that out as a recurring failure
+mode, which is a slightly humbling thing to have written down and then need
+reminding of.
+
+What I did instead was write the decision down with the conditions that would
+change it: a genuine lull, a second app that needs its own database and auth, a
+shared login across projects (cross-zone sessions are the same class of problem
+that produced the `basePath` bug), or a third production incident traceable to
+this seam. Two is a pattern forming. Three is a pattern.
+
+That's the part I'd defend hardest. "This was probably the wrong call, and I'm
+keeping it anyway, and here's exactly what would make me change my mind" is a
+more useful engineering position than either digging in or rewriting. The
+architecture is a bit wrong. The cron is fixed, and it now tells me when it
+isn't.
