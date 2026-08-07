@@ -14,6 +14,9 @@ const PATHS = [
   // figures — so it is the post most likely to break reflow.
   "/log/no-hard-4x4-killer-sudoku",
   "/log/one-column-four-jobs",
+  // Three figures plus fixed-width log/probe blocks whose lines are far wider
+  // than 320px, so it is the post most likely to break reflow via a `pre`.
+  "/log/thirteen-hours-no-error",
 ];
 
 for (const path of PATHS) {
