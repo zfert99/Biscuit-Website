@@ -69,8 +69,8 @@ incident:
 That's the breakage. The disappearance is a separate line, a few paragraphs
 further down the same page:
 
-> When cron jobs respond with a redirect or a cached response, they will not be
-> shown in the logs.
+> Note that when cron jobs respond with a redirect or a cached response, they
+> will not be shown in the logs.
 
 The first sentence broke the job. The second one hid it. A redirected invocation
 isn't a *failure* as far as the platform is concerned — the request completed,
@@ -88,6 +88,10 @@ what came back was the answer:
 2026-08-06 00:54:24   200   puzzle-generator-….vercel.app
 2026-08-07 00:00–00:59   —   nothing at all
 ```
+
+The `00:53` is not a clue, incidentally — I schedule for midnight, but Hobby-plan
+crons are deliberately spread across the scheduled hour to smooth Vercel's load,
+so somewhere in the 00:00 hour is exactly on time.
 
 Two things fall out of that. Every run that *had* worked came in on the
 `*.vercel.app` host — direct proof of which URL Vercel actually calls, which
