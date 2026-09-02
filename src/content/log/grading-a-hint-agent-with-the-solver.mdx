@@ -5,6 +5,8 @@ summary: A weekend build — an MCP server over Puzzle Lab's human solver, an ag
 project: puzzles
 ---
 
+import Image from 'next/image'
+
 Most "AI tutor" demos have the same hole. You can prompt a model to give hints,
 and the hints sound great, and you have no way to know whether they are right.
 Puzzle Lab is in an unusual position here: its `HumanSolver` is a logical
@@ -30,10 +32,31 @@ took an afternoon. Candidates in the solver are bitmasks, so the wrapper is:
 clone the solver (grid *and* candidates, because rebuilding from the grid alone
 forgets every elimination made so far), run each technique on its own clone,
 and diff the bitmasks. Whatever bits disappeared are that technique's
-eliminations. Singles get a direct scan so every one is reported, not just the
-first. About 150 lines, and a test that walks easy through expert puzzles and
-checks at every step that every placement equals the solution digit and no
-elimination removes it.
+eliminations:
+
+```ts
+for (const strategy of ELIMINATION_STRATEGIES) {
+  const clone = cloneSolver(solver);
+  if (!strategy.apply(clone)) continue;
+  const removed = before.candidates[r][c] & ~clone.candidates[r][c]; // per cell
+  // every set bit in `removed` is one elimination this technique justifies
+}
+```
+
+Singles get a direct scan so every one is reported, not just the first. About
+150 lines, and a test that walks easy through expert puzzles and checks at
+every step that every placement equals the solution digit and no elimination
+removes it.
+
+## The half hour I lost
+
+The agent talks to the MCP server over stdio, spawning one server per position
+with the grid in an environment variable. The first run died with nothing on
+stderr. The MCP client's `env` option *replaces* the child's environment rather
+than extending it, so the server was being launched with no `PATH` and `npx`
+could not be found. One spread of the default environment fixed it. I mention
+it because it is the kind of bug that produces no error and eats exactly the
+time you did not budget.
 
 ## The part nobody else's eval has
 
@@ -82,6 +105,13 @@ positions had a single available, and the prompt says prefer the simplest
 technique, so the agent was never asked to explain an X-Wing. The ten
 elimination techniques in the oracle went untouched.
 
+<Image
+  src="/log/hint-agent-techniques.png"
+  alt="A horizontal bar chart titled Every hint was a single. For each of twelve Sudoku techniques, grouped into basic, advanced and extreme tiers, two bars show how many of the 40 solvable positions had the technique available versus how many times the agent hinted it. Naked Single: available in 33, hinted 33. Hidden Single: available in 40, hinted 7. Every other technique has an available bar and a hinted count of zero, including Naked Pair 25, Pointing Pairs 25, X-Wing 27, ALS-XZ 34 and AIC 33. W-Wing was available in none."
+  width={1800}
+  height={1524}
+/>
+
 So what the number shows is that the agent *follows the tool*. It reads the
 list, picks the first entry, does not editorialise, and does not make things up
 when the list is empty. That is worth knowing and it is what most of a tutor's
@@ -100,3 +130,6 @@ hits that all turned out to be the phrase "one candidate."
 Get the oracle first. The agent was the easy half. The thing that made the
 weekend worth doing was having something that could say, with certainty, "there
 is no move here," and then watching whether the model would believe it.
+
+If you have built an eval for a tutoring agent, I would like to know what you
+graded against. An oracle this clean is a luxury most domains do not have.
