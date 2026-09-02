@@ -582,7 +582,10 @@ the assumptions above. As of 2026-07-29: B0/B1/B2/B5 done, B4 done in-repo
 - **Project card `href`** points at `puzzles.biscuitlab.net` today; it switches
   to `/puzzles` at migration (Part 7).
 - **Toolchain.** Next pinned at `16.2.12`; `overrides` for Next's nested
-  `postcss`/`sharp`; CI audits production deps only. ESLint 10 / TypeScript 7 /
+  `postcss`/`sharp`, and for `nanoid` (GHSA-2v37-7h3g-55p8, reached through
+  `@tailwindcss/postcss` → `postcss`; added September 2026 after the audit gate
+  went red on an unrelated PR — the same fix Puzzle Lab used); CI audits
+  production deps only. ESLint 10 / TypeScript 7 /
   `@types/node` 26 are deferred — see
   `Docs/research/eslint10-ts7-upgrade-blockers.md`.
 - **Repo governance.** Branch protection requires the `verify` check + linear
