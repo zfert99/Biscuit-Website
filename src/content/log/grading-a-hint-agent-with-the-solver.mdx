@@ -1,0 +1,102 @@
+---
+title: I gave an AI tutor a Sudoku solver, then used the solver to grade it
+date: 2026-09-02
+summary: A weekend build — an MCP server over Puzzle Lab's human solver, an agent that gives one hint, and an eval harness that scored 52 hints against ground truth. The number came back perfect, which turned out to be the interesting part.
+project: puzzles
+---
+
+Most "AI tutor" demos have the same hole. You can prompt a model to give hints,
+and the hints sound great, and you have no way to know whether they are right.
+Puzzle Lab is in an unusual position here: its `HumanSolver` is a logical
+deduction engine with twelve techniques, from Naked Single up to AIC, and for
+any grid it can say exactly which techniques apply. That is an oracle. So the
+question I set out to answer in one weekend was simple: if I hand that oracle to
+an agent as a tool, and then use the same oracle to grade what the agent says,
+what number comes out?
+
+Four pieces, nothing else. An MCP server exposing the solver. An agent that
+gives one hint by calling it. An eval harness that scores every hint. A writeup.
+Explicitly cut: move application, session state, any UI, a public demo.
+
+## The solver couldn't answer the question I needed
+
+The first thing I checked was whether `HumanSolver` could list *all* the
+deductions available in a position. It couldn't. Its `solve()` is a stepper:
+try the techniques cheapest-first, apply the first one that fires, start over.
+Perfect for grading puzzle difficulty, useless for "what are my options here?"
+
+I had budgeted a second weekend for this if it turned out to be the case. It
+took an afternoon. Candidates in the solver are bitmasks, so the wrapper is:
+clone the solver (grid *and* candidates, because rebuilding from the grid alone
+forgets every elimination made so far), run each technique on its own clone,
+and diff the bitmasks. Whatever bits disappeared are that technique's
+eliminations. Singles get a direct scan so every one is reported, not just the
+first. About 150 lines, and a test that walks easy through expert puzzles and
+checks at every step that every placement equals the solution digit and no
+elimination removes it.
+
+## The part nobody else's eval has
+
+The agent itself is small: two tools, a system prompt that says one step
+maximum, name the technique, never state the digit, refuse rather than guess.
+Structured output so the answer is always `{ hint, reason }` with `hint`
+allowed to be `null`.
+
+The harness is where the oracle earns its keep. Forty positions sampled along
+solve walks, ten per difficulty. Four numbers for each: is the deduction the
+agent named actually in the list, did it name the right technique, did it leak
+the digit, and, on positions where *nothing* is available, did it refuse or did
+it invent something?
+
+Those empty positions are the ones I care about. Most hint evals can't include
+them because they have no way to certify that nothing is available. I did:
+take a puzzle, remove clues at random until the oracle returns an empty list.
+Twelve of those. On each one the model still has the full candidate table in
+front of it and every incentive to be helpful. That is where an agent
+hallucinates a move.
+
+## The number
+
+Fifty-two states on Claude Opus 5, one run, about a dollar fifty:
+
+| Metric | Value | n |
+|---|---|---|
+| Named cells are one real deduction | 100% | 40 |
+| Technique labelled correctly | 100% | 40 |
+| Stated the digit | 0% | 40 |
+| Refused on empty positions | 12 of 12 | 12 |
+
+Every run called both tools, in the same order, and named exactly one cell. The
+refusals cited the tool, not the model's own reading of the grid: *"I checked
+the position with the deduction engine and it returned no available steps.
+Since I won't invent a step that isn't actually supported, I can't give you a
+nudge here; please double-check that the grid was entered correctly."* Which is
+the right answer, and a better one than I had written into the prompt.
+
+## What 100% does not mean
+
+A perfect score is a finding about the eval before it is a finding about the
+model. One look at the strategy histogram told the real story: 33 Naked
+Singles, 7 Hidden Singles, zero anything else. Every one of the forty sampled
+positions had a single available, and the prompt says prefer the simplest
+technique, so the agent was never asked to explain an X-Wing. The ten
+elimination techniques in the oracle went untouched.
+
+So what the number shows is that the agent *follows the tool*. It reads the
+list, picks the first entry, does not editorialise, and does not make things up
+when the list is empty. That is worth knowing and it is what most of a tutor's
+job is. It does not show technique reasoning, and the fix is obvious: a third
+population of positions where the oracle returns no singles. That is a filter on
+the existing walk, not new machinery, and it is next.
+
+The other limits are the usual ones. The number measures this prompt on this
+model; the prompt is part of the experiment. "Nothing available" means none of
+twelve implemented techniques, and a human might see something the solver does
+not. The digit-leak check is a regex over the explanation, and it flagged 37
+hits that all turned out to be the phrase "one candidate."
+
+## What I'd tell someone building one of these
+
+Get the oracle first. The agent was the easy half. The thing that made the
+weekend worth doing was having something that could say, with certainty, "there
+is no move here," and then watching whether the model would believe it.
