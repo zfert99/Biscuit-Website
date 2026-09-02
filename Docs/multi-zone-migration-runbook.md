@@ -222,3 +222,23 @@ it's live.
    `noindex`) and that the 301s are resolving in GSC. Do **not** use the
    Change-of-Address tool — it's domain-level only, not path-level (validation
    doc §7).
+
+---
+
+## Second zone: BellTab (2026-09-02)
+
+The `/bell` zone reuses this runbook's corrected recipe wholesale, minus
+everything auth-shaped — BellTab has no auth, no rpID, no legacy subdomain, and
+therefore no 301 track and no OAuth/cookie steps. What transfers:
+
+- Dormant rewrite behind `BELL_ORIGIN` (both entries, bare `/bell` and
+  `/bell/:path*`), merged before the Vercel side exists; the env var is the
+  cutover switch, and rewrites are read at build time.
+- Dedicated custom origin host `origin-bell.biscuitlab.net` with Deployment
+  Protection ON (issue #3's lesson: the generated `*.vercel.app` alias is
+  protection-locked and cannot be the rewrite target).
+- Card AFTER the flip is verified, as a cross-zone `<a>` (`crossZone: true`).
+- The card PR is also where the deferred sitemap index (§3) finally lands:
+  `/puzzles/sitemap.xml` and `/bell/sitemap.xml` both exist by then.
+
+The BellTab-side sequence and gate live in `belltab/Docs/roadmap.md` Phase 7.
