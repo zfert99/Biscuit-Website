@@ -61,10 +61,28 @@ const nextConfig: NextConfig = {
     // returns [] (no-op) when unset, e.g. local dev. Both entries are required — the
     // bare /puzzles path doesn't always match :path*.
     const origin = process.env.PUZZLES_ORIGIN?.replace(/\/$/, "");
-    if (!origin) return [];
+
+    // BellTab, the second zone, by the same recipe: BELL_ORIGIN points at the
+    // dedicated custom host origin-bell.biscuitlab.net (protection ON, custom
+    // domains exempt). Dormant until the env var is set - which is the whole
+    // cutover switch, since rewrites are read at build time. BellTab has no
+    // auth and no legacy subdomain, so this is the easy half of what the
+    // runbook describes; see belltab's Docs/roadmap.md Phase 7.
+    const bellOrigin = process.env.BELL_ORIGIN?.replace(/\/$/, "");
+
     return [
-      { source: "/puzzles", destination: `${origin}/puzzles` },
-      { source: "/puzzles/:path*", destination: `${origin}/puzzles/:path*` },
+      ...(origin
+        ? [
+            { source: "/puzzles", destination: `${origin}/puzzles` },
+            { source: "/puzzles/:path*", destination: `${origin}/puzzles/:path*` },
+          ]
+        : []),
+      ...(bellOrigin
+        ? [
+            { source: "/bell", destination: `${bellOrigin}/bell` },
+            { source: "/bell/:path*", destination: `${bellOrigin}/bell/:path*` },
+          ]
+        : []),
     ];
   },
 };
