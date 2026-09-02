@@ -39,4 +39,18 @@ export const projects: Project[] = [
     status: "live",
     screenshot: "/projects/puzzle-lab.svg",
   },
+  {
+    slug: "bell",
+    name: "BellTab",
+    blurb:
+      "A school bell schedule countdown that lives in the browser tab title — the time remaining is readable from the tab strip, the taskbar, or a projector across the room.",
+    contains: ["Countdown", "Schedules", "Big mode"],
+    // The second zone, served through the /bell multi-zone rewrite. crossZone →
+    // hard-nav <a>: a different Next zone, same site. Unlike Puzzle Lab there is
+    // no legacy subdomain behind this one; /bell has only ever been this.
+    href: "/bell",
+    crossZone: true,
+    status: "live",
+    screenshot: "/projects/belltab.svg",
+  },
 ];

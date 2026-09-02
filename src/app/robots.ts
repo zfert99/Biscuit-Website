@@ -22,7 +22,11 @@ export default function robots(): MetadataRoute.Robots {
     // crawl benefit, and it would collide with the hub's `app/sitemap.ts` special file.
     // The puzzle zone's sitemap lives in the Puzzle-Generator repo and is served through
     // the /puzzles rewrite. See Docs/research/sitemap-architecture-multi-zone.md.
-    sitemap: [`${site.url}/sitemap.xml`, `${site.url}/puzzles/sitemap.xml`],
+    sitemap: [
+      `${site.url}/sitemap.xml`,
+      `${site.url}/puzzles/sitemap.xml`,
+      `${site.url}/bell/sitemap.xml`,
+    ],
     host: site.url,
   };
 }

@@ -238,7 +238,10 @@ therefore no 301 track and no OAuth/cookie steps. What transfers:
   Protection ON (issue #3's lesson: the generated `*.vercel.app` alias is
   protection-locked and cannot be the rewrite target).
 - Card AFTER the flip is verified, as a cross-zone `<a>` (`crossZone: true`).
-- The card PR is also where the deferred sitemap index (§3) finally lands:
-  `/puzzles/sitemap.xml` and `/bell/sitemap.xml` both exist by then.
+- **Not the sitemap index.** §3 above was superseded before BellTab arrived:
+  `robots.ts` advertises each zone's sitemap from the apex robots.txt instead
+  (see `Docs/research/sitemap-architecture-multi-zone.md` for why an index lost).
+  The BellTab card PR therefore adds one line to that list —
+  `/bell/sitemap.xml` — and no index.
 
 The BellTab-side sequence and gate live in `belltab/Docs/roadmap.md` Phase 7.
