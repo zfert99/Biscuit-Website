@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" role="img" aria-label="BellTab">
+  <rect width="640" height="400" fill="#E8A33D"/>
+  <g fill="#F5E7C8" stroke="#2B1B12" stroke-width="4" stroke-linejoin="round" stroke-linecap="round">
+    <path d="M320 96 C282 96 263 128 263 166 C263 204 249 226 233 242 L407 242 C391 226 377 204 377 166 C377 128 358 96 320 96 Z" fill="#FBF3E3"/>
+    <path d="M293 268 C293 284 304 295 320 295 C336 295 347 284 347 268 Z" fill="#2B1B12"/>
+  </g>
+  <g fill="#2B1B12" font-family="'Space Mono', ui-monospace, monospace" font-size="40" font-weight="700" text-anchor="middle">
+    <text x="320" y="356">12:47</text>
+  </g>
+</svg>
