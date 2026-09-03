@@ -23,7 +23,21 @@ const nextConfig: NextConfig = {
     root: path.resolve(__dirname),
   },
   async headers() {
-    return [{ source: "/:path*", headers: securityHeaders }];
+    // Every route the hub itself serves - and NOT the proxied zones. A header
+    // set here is applied to the rewritten response too, on top of whatever
+    // the zone's origin sent, and the hub's list is shorter than BellTab's:
+    // measured at cutover (belltab build log, 2026-09-02), biscuitlab.net/bell
+    // carried the hub's Permissions-Policy and Referrer-Policy instead of the
+    // origin's stricter set. Each zone owns its own headers; the negative
+    // lookahead keeps the hub's hands off /puzzles and /bell so the origin's
+    // pass through. Verified locally with the proxy pointed at the real origin
+    // before this shipped.
+    return [
+      {
+        source: "/:path((?!puzzles(?:/|$)|bell(?:/|$)).*)",
+        headers: securityHeaders,
+      },
+    ];
   },
   async redirects() {
     // Multi-zone 301: the old puzzles.biscuitlab.net subdomain -> the /puzzles
