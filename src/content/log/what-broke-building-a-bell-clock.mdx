@@ -1,0 +1,215 @@
+---
+title: What broke building a bell clock
+date: 2026-09-04
+summary: Forty-three bugs in ten days, almost none of them typos. The mistakes were beliefs — that a comment was true, that a stub stood in for a browser, that a green test meant what its name said. Here are the ten that generalise.
+project: bell
+---
+
+import Image from 'next/image'
+
+BellTab is a small app: a school bell countdown that runs in the tab title,
+no server, no accounts, a few hundred bytes of state in the URL. It took ten
+days to build and its build log records forty-three things that broke along
+the way. I went back through all of them for this post, and the surprise was
+how few were typos. Nearly every one was a *belief* — something the code, a
+comment or a test claimed, that turned out not to be so.
+
+The long version, with every bug named and dated, is
+[Mistakes and lessons](https://github.com/zfert99/Biscuit-Website/blob/main/Docs/mistakes-and-lessons.md)
+in the hub's docs. This is the short one.
+
+<Image
+  src="/log/belltab-countdown.png"
+  alt="BellTab's countdown screen: Period 2, 35:12 remaining in large digits, a progress bar, and the start and end times underneath."
+  width={1216}
+  height={1084}
+/>
+
+## What did a one-line test catch that reading never would?
+
+BellTab has had a blocking Playwright test since its first commit: at five
+viewport widths, `documentElement.scrollWidth <= clientWidth + 1`. One
+assertion. It found five bugs, and I had read the CSS for every one of them.
+
+The first: a sixty-character period name with no spaces pushed the body grid
+to 811px inside a 768px viewport. `overflow-wrap: break-word` was on
+`<body>`, and the comment beside it said that was enough. It wasn't —
+`break-word` lets a word wrap but does not shrink the element's min-content
+width, so every intrinsically-sized ancestor still grew to fit the unbroken
+word. `anywhere` is the value that does both.
+
+Later it caught two live rules deleted along with a "Day view" section they
+did not belong to, a name column that had collapsed to 8px when the editor
+grew to seven columns (Chrome's axe missed it by two pixels), and a `<nav>`
+taking 128px the editor did not have.
+
+**A rule in a document is a wish. A rule in CI is a fact about every commit
+after it.** The same lesson wore two other outfits that week: an npm script
+for linting the docs that had never once been run, and security headers that
+had been reaching every asset and not one page, for a week, until someone
+ran `curl -I`.
+
+## Why did a stub that always succeeded hide three bugs?
+
+Every browser boundary in BellTab is stubbed in Playwright — the Wake Lock,
+Notifications, the service worker, the clipboard — and every stub was written
+to succeed, promptly. Three bugs lived in the gap between "promptly" and
+"when a browser actually would".
+
+The worst one: the page lives at `/bell`, the service worker's scope is
+`/bell/`, so `serviceWorker.ready` never resolves, and the code called
+`showNotification` on the registration straight away. A real worker spends a
+few hundred milliseconds `installing`. A bell in that window was swallowed.
+The stub had handed back an already-active worker, so nothing in CI could
+have seen it; I found it on a real phone.
+
+The wake-lock retry had a double-request race for the same reason — the stub
+resolved synchronously, so the race had no window to exist in. And a
+`setTimeout` inside a stub never fires under Playwright's paused clock, which
+hung every test that used it until it became a microtask.
+
+**A stub that models only success models nothing worth testing.** Every stub
+now has a refusing mode and a slow mode, and at least one test goes through
+each.
+
+## How many green tests were green for the wrong reason?
+
+Six.
+
+- A fixture that cleared `localStorage` was installed with `addInitScript`,
+  which re-runs on every navigation — including the reload in the test named
+  "preferences survive a reload". It passed on a build where they did not.
+- Three "engine failures" were the test's arithmetic, not the engine's.
+- A ported test could not fail for the reason it printed. Optional chaining
+  beside a null check is a bug pattern, not an idiom:
+
+  ```ts
+  // always true when #period-name is missing
+  expect(document.querySelector("#period-name")?.textContent !== null).toBe(true);
+  ```
+
+- `clock.install` keeps time moving; only `pauseAt` stops it. Two flaky tests
+  were the countdown ticking once between arrange and assert.
+- The fake time parsed in the runner's timezone, so every test started in a
+  different period on GitHub's UTC runners:
+
+  ```ts
+  await page.clock.pauseAt(new Date("2026-09-02T10:20")); // whose 10:20?
+  ```
+
+**Read a green test the way you read a red one.** Ask what would have to be
+true for it to pass, then break the code on purpose and watch it fail for the
+stated reason.
+
+## When is a comment a bug?
+
+When it asserts a measurement nobody made. `/* never below the 4.5:1
+contrast floor */` sat above `opacity: 0.55`, which put the soft text at
+3.9:1 on the dark theme. "WebKit has no `type="time"`" was true of one
+Playwright build and not of Safari, and a workaround was built on it. And
+after Big mode was renamed, two selectors kept matching by coincidence and
+stopped meaning anything at all.
+
+**A browser-behaviour claim is a claim about one engine on one date.** The
+repo's agent rules now require every such claim to carry a citation or a
+test, because of this section.
+
+<Image
+  src="/log/belltab-day-view.png"
+  alt="BellTab's Day view: the schedule as a list of periods with clock times, the current one marked and carrying a progress track, past ones collapsed behind a disclosure."
+  width={1216}
+  height={1696}
+/>
+
+## What did the framework add to my page?
+
+An `aria-live="assertive"` region. Next's route announcer ships in every
+page, and BellTab's rule is that the countdown must *never* announce — so a
+test asserting "no live regions here" failed on a page that had none of its
+own. The App Router also overwrites `document.title` a frame after you set
+it, and `next build` rewrites `tsconfig.json` behind you.
+
+Engines differ too: Chrome's modal tab cycle passes through `<body>` and
+Firefox's does not; WebKit paints a `<select>`'s text outside the `<select>`
+at narrow widths; `svg.hidden = true` does nothing because `hidden` is an
+`HTMLElement` property.
+
+**The page is not the page you wrote.** Test on three engines, look at the
+screenshots, and read where the framework puts its DOM before asserting
+there is none.
+
+## Which mistakes could only a person see?
+
+The ones CI is structurally blind to: correct implementations of the wrong
+thing.
+
+The settings copy was accurate and read like a specification, and it took
+two rewrites in the user's own words before it stopped. A shared link
+*filed the schedule away* in the picker instead of showing it — the person
+clicked a link to see a schedule, and saw the regular day. The
+day-as-blocks strip was rebuilt under the progress bar when the original had
+replaced it edge to edge; then the blocks were too short to hover; then the
+separators marked every boundary instead of every change of kind.
+
+**Run a dev server and put it in front of the person before merging.** Ask
+what they meant, not whether it matches the ticket.
+
+## Where did the plan and the code disagree?
+
+<Image
+  src="/log/belltab-big-mode.png"
+  alt="BellTab's Big mode filling a 1920 by 1080 screen: the period name and the countdown digits at projector size on a dark background."
+  width={1920}
+  height={1080}
+/>
+
+Big mode — the projector view — was never in the plan's Phase 6. It was
+built because the case was obvious in the room, and the plan was amended
+after. The Day view went the other way: the React port dropped it with a
+note, the note aged into a gap, the gap was closed by mistake in a tidy-up,
+and it took "what happened to the full day view?" to bring it back. The
+restoration carried two contrast failures of its own.
+
+**A parked feature needs a phase, not a note. Restored code is new code.**
+
+## Which two lessons came from outside the browser?
+
+**A name is not an identity.** The "is this schedule already in the
+library?" guard compared names, so a shared schedule called "Regular"
+arriving over a link was treated as the seeded one. Schedules carry ids for
+exactly this; a guard keyed on what is *displayed* is keyed on the wrong
+thing. The same half-applied invariant let a `string` date reach the
+calendar unparsed while every schedule beside it went through "parse, don't
+validate".
+
+**A proxied zone is invisible to every dashboard.** BellTab is served at
+`biscuitlab.net/bell` by a rewrite from the hub, and the hub's own headers
+matcher was quietly overwriting the zone's headers on every page. No console
+shows that. `curl -I` on the live URL does, in four seconds.
+
+## What is the build log actually for?
+
+Every bug above came from a file that has to be updated with every change,
+not at the end of a phase: dated entries, decisions with the reasoning, open
+gaps, bugs with the lesson. Its one hard rule is *append, don't rewrite* — a
+reversed decision gets a new entry, and the old one stays. Most of what is
+in this post is visible only because the wrong turn was still on the page
+next to the right one.
+
+189 decisions, 94 closed gaps, 43 bugs, one open gap (undo, declined on
+purpose), and none of it written afterwards.
+
+## The short list
+
+1. A rule in CI is a fact; a rule in a document is a wish.
+2. A stub that succeeds immediately proves nothing. Give it a refusing mode
+   and a slow mode.
+3. Read a green test like a red one. Break the code and watch it fail for
+   the stated reason.
+4. A comment asserting a measurement is a claim. Measure it or delete it.
+5. The page is not the page you wrote.
+6. Key comparisons on identity, never on what is displayed.
+7. A parked feature needs a phase, not a note.
+8. Some mistakes are only visible to the person the tool is for.
+9. A proxied zone is invisible to every dashboard. Verify with a request.
+10. Write the log while the wrong turn is fresh.
