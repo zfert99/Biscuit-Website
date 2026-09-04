@@ -1,0 +1,165 @@
+---
+title: A clock that never counts down
+date: 2026-09-04
+summary: BellTab is a school bell countdown that lives in the browser tab. Building it came down to one rule the browser forces on you, a set of gates that caught more than I did, and a lesson about restoring old code that I had to learn twice in one day.
+project: bell
+---
+
+import Image from 'next/image'
+
+BellTab is a school bell countdown that lives in the browser tab title, so a
+teacher can read the time to the next bell from the taskbar or from the back
+of the room. It has no accounts and no server; the schedule lives in the URL
+when shared and in the browser otherwise. Building it came down to one rule
+browsers force on any clock left open all day - recompute, never decrement -
+and a set of automated gates that caught more than reading the code did.
+
+It lives at [biscuitlab.net/bell](/bell).
+
+<Image
+  src="/log/belltab-countdown.png"
+  alt="BellTab's countdown card in its cream light theme. The header reads BellTab, with Regular and 9:30 on the right beside a gear button. Below, Period 2 in bold, then a very large 35:00 labelled min : sec. Under that, a row of rounded blocks spanning the card's width represents the day: the first block filled dark, the second partly filled orange, five empty blocks after it, joined by short dashes. A caption reads 2 of 7 · 5h 00m until dismissal. A footer shows 9:05 and 10:05 at the edges with Next: Passing at 10:05 in the middle, then three buttons - Now, Day, Big mode - and a line reading On a projector? Keep the screen awake."
+  width={1216}
+  height={1084}
+/>
+
+That is a small product. The interesting part was what the browser does to a
+small product when you leave it open all day.
+
+## Why can't a countdown just count down?
+
+A countdown is the most natural thing in the world to write as a number you
+subtract from once a second. It is also wrong, and wrong in the worst way: it
+looks right while you are watching it.
+
+Browsers throttle background tabs. Chrome, after five minutes hidden, wakes a
+timer about once a minute. Mobile browsers freeze a hidden tab outright and
+thaw it when you come back. A counter that decrements on each tick drifts
+while the tab is hidden, and when you switch back it is confidently, silently
+wrong. Nobody reports that bug, because by the time they look again it has
+caught up.
+
+So BellTab has no counter. Every value on screen is `deadline − now`,
+recomputed on every tick and, more importantly, on `visibilitychange` and
+`focus`. The whole clock is one hook, and this is most of it:
+
+```ts
+useEffect(() => {
+  const read = () => setNow(localNow(new Date()));
+  read();
+  const ticker = window.setInterval(read, 1000);
+  // The two events that mean "you have been lied to": a hidden tab is
+  // throttled to about one wakeup a minute, and a frozen one gets none.
+  document.addEventListener("visibilitychange", read);
+  window.addEventListener("focus", read);
+  return () => {
+    window.clearInterval(ticker);
+    document.removeEventListener("visibilitychange", read);
+    window.removeEventListener("focus", read);
+  };
+}, []);
+```
+
+Nothing in it remembers a remaining time. The tab can sleep for an hour; the
+first paint after it wakes is correct. That one rule is the spine of the codebase, and every later feature
+inherited it. The chime rings once for the state you woke up into, not once
+per bell you slept through. The little progress squares fill by how far
+through the period it is, so a frozen tab that jumps twenty percent on return
+reads as normal - the same gap in a seconds counter reads as broken.
+
+The whole schedule engine is pure functions that take the current time as an
+argument. That sounds like a testing convenience, and it is, but it is really
+the same rule again: nothing inside the engine is allowed to remember what
+time it was.
+
+## What did the gates catch that reading did not?
+
+From the first commit the repo had a reflow gate (no horizontal scroll at
+320 pixels, on every screen, with a sixty-character unbroken period name typed
+in) and an axe sweep (no serious accessibility violations, on every journey),
+both blocking merges. I expected them to be paperwork. They were the best
+reviewers on the project.
+
+A few of the things they caught, all on the first run after the change:
+
+- Adding an end-time column to the schedule editor made it seven columns, and
+  the settings panel is 684 pixels wide at every desktop size because the
+  card caps at sixty rem. The name column collapsed to eight pixels on every
+  engine. Chrome's axe missed it by two pixels; Firefox's and WebKit's did
+  not. The fix was a container query - the viewport was never the constraint.
+- A period-name crossfade that started at `opacity: 0` on first paint. Under
+  the test harness's paused clock, WebKit never advanced the animation, so the
+  period name had no contrast at all. A design mistake as much as a test one:
+  a fade means nothing to someone opening the tab mid-period.
+- Deleting a dead stylesheet section took two live `overflow-wrap` rules with
+  it, because they had been written where their first consumer lived, years
+  of sessions ago. Six reflow failures in under a minute.
+
+None of these would have been found by reading. All of them were found by a
+check that runs on everything, every time.
+
+<Image
+  src="/log/belltab-big-mode.png"
+  alt="BellTab in Big mode on a dark purple background, projector-shaped. The period name Period 2 and a very large 35:00 fill the screen, with min : sec beneath. Below the digits, a full-width row of rounded blocks with dashes between them shows the day: one filled block, one partly filled in orange, five empty. A caption reads 2 of 7 · 5h 00m until dismissal, and a footer shows 9:05, Next: Passing at 10:05, and 10:05. A small Exit big mode pill sits at the bottom."
+  width={1920}
+  height={1080}
+/>
+
+## Why is restored code new code?
+
+The original version of BellTab was plain HTML and JavaScript, built in a day
+to see the wiring before a framework hid it. When I ported it to Next.js, the
+countdown and the editor came across; a "Day view" - the whole schedule as a
+list, with progress through the day - did not. No phase in the roadmap named
+it, so nothing rebuilt it, and eventually its leftover CSS and formatters were
+deleted as dead code. That was the honest state until someone asked where it
+went.
+
+<Image
+  src="/log/belltab-day-view.png"
+  alt="BellTab's Day view: a heading Day progress with 2 of 7 · 5h 00m until dismissal beside it, a progress bar about a quarter full, a disclosure reading 2 earlier periods, and a list of periods. The running row, Period 2 at 9:05, is bold with 35m 00s on the right and its own progress track beneath. The rows after it - Passing 5m, Period 3 55m, A Lunch 30m, Period 4 55m, Passing 5m, Period 5 55m, Passing 5m, Period 6 55m - show each period's start time, name and length. Now, Day and Big mode buttons sit at the bottom with Day selected."
+  width={1216}
+  height={1696}
+/>
+
+Bringing it back was mostly `git show`. The engine functions and their tests
+came back verbatim and passed. The CSS came back verbatim and failed the axe
+sweep twice: past rows had been dimmed with `opacity: 0.55` under a comment
+that said "never below the 4.5:1 contrast floor," and the running row's time
+was painted in an accent colour that measures under 3:1 as text. Both comments
+were confident. Neither had been measured, because the original predated the
+gate.
+
+Same day, different file: restoring a shared wrap rule by copying the old
+selector list pulled in three extra selectors I already had elsewhere. Same
+lesson. Old code carries its old assumptions, and the comments are the least
+reliable part - they are claims, and the claim outlives the check.
+
+## What does a stub that succeeds immediately prove?
+
+Two of the day's real bugs came from the same shape. The screen wake lock got
+a "retry on the next tap" for when battery saver turns off, and the retry
+made a race reachable: a request takes tens of milliseconds over IPC, and a
+tap inside that window issued a second request, landed two locks, and
+released only one when you turned the feature off. The screen stayed awake
+with the UI saying it wouldn't. The service worker for Android notifications
+had the same bug in a different API: `register()` resolves before the worker
+is active, and a bell in that window was silently swallowed.
+
+The test suite was green both times, because the stubs resolved in a
+microtask. There was never an in-flight window to land anything in. The fixes
+were small - an in-flight flag, waiting for activation - but the stubs had to
+change too, to model the lifecycle they had been hiding. One test now
+registers the real worker on real Chrome and asserts it active, which is the
+only test that proves the model.
+
+## What is it now?
+
+Live at `/bell`, installable, with a chime and a notification that are honest
+about only working while the tab is open. Around 440 unit tests over the pure
+engine and 750 browser tests across Chrome, WebKit and Firefox, none of them
+excused. A build log that records every decision with its reason, every gap
+with its date, and every bug with the lesson - including the ones above. The
+open-gaps table is down to one row, and it is a feature nobody has needed yet.
+
+The code is at [github.com/zfert99/belltab](https://github.com/zfert99/belltab).
