@@ -41,8 +41,27 @@ caught up.
 
 So BellTab has no counter. Every value on screen is `deadline − now`,
 recomputed on every tick and, more importantly, on `visibilitychange` and
-`focus`. The tab can sleep for an hour; the first paint after it wakes is
-correct. That one rule is the spine of the codebase, and every later feature
+`focus`. The whole clock is one hook, and this is most of it:
+
+```ts
+useEffect(() => {
+  const read = () => setNow(localNow(new Date()));
+  read();
+  const ticker = window.setInterval(read, 1000);
+  // The two events that mean "you have been lied to": a hidden tab is
+  // throttled to about one wakeup a minute, and a frozen one gets none.
+  document.addEventListener("visibilitychange", read);
+  window.addEventListener("focus", read);
+  return () => {
+    window.clearInterval(ticker);
+    document.removeEventListener("visibilitychange", read);
+    window.removeEventListener("focus", read);
+  };
+}, []);
+```
+
+Nothing in it remembers a remaining time. The tab can sleep for an hour; the
+first paint after it wakes is correct. That one rule is the spine of the codebase, and every later feature
 inherited it. The chime rings once for the state you woke up into, not once
 per bell you slept through. The little progress squares fill by how far
 through the period it is, so a frozen tab that jumps twenty percent on return
