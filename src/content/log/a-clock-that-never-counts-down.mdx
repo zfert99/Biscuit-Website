@@ -5,16 +5,26 @@ summary: BellTab is a school bell countdown that lives in the browser tab. Build
 project: bell
 ---
 
-BellTab does one thing: it shows how long until the next bell, in the tab
-title, so a teacher can see it from the taskbar or from the back of the room.
-It lives at [biscuitlab.net/bell](/bell). No accounts, no server, no network
-after the page loads. The schedule is in the URL if you share it and in the
-browser if you don't.
+BellTab is a school bell countdown that lives in the browser tab title, so a
+teacher can read the time to the next bell from the taskbar or from the back
+of the room. It has no accounts and no server; the schedule lives in the URL
+when shared and in the browser otherwise. Building it came down to one rule
+browsers force on any clock left open all day - recompute, never decrement -
+and a set of automated gates that caught more than reading the code did.
+
+It lives at [biscuitlab.net/bell](/bell).
+
+<Image
+  src="/log/belltab-countdown.png"
+  alt="BellTab's countdown card in its cream light theme. The header reads BellTab, with Regular and 9:30 on the right beside a gear button. Below, Period 2 in bold, then a very large 35:00 labelled min : sec. Under that, a row of rounded blocks spanning the card's width represents the day: the first block filled dark, the second partly filled orange, five empty blocks after it, joined by short dashes. A caption reads 2 of 7 · 5h 00m until dismissal. A footer shows 9:05 and 10:05 at the edges with Next: Passing at 10:05 in the middle, then three buttons - Now, Day, Big mode - and a line reading On a projector? Keep the screen awake."
+  width={1216}
+  height={1084}
+/>
 
 That is a small product. The interesting part was what the browser does to a
 small product when you leave it open all day.
 
-## Recompute, never decrement
+## Why can't a countdown just count down?
 
 A countdown is the most natural thing in the world to write as a number you
 subtract from once a second. It is also wrong, and wrong in the worst way: it
@@ -41,7 +51,7 @@ argument. That sounds like a testing convenience, and it is, but it is really
 the same rule again: nothing inside the engine is allowed to remember what
 time it was.
 
-## The gates caught more than I did
+## What did the gates catch that reading did not?
 
 From the first commit the repo had a reflow gate (no horizontal scroll at
 320 pixels, on every screen, with a sixty-character unbroken period name typed
@@ -67,7 +77,14 @@ A few of the things they caught, all on the first run after the change:
 None of these would have been found by reading. All of them were found by a
 check that runs on everything, every time.
 
-## Restored code is new code
+<Image
+  src="/log/belltab-big-mode.png"
+  alt="BellTab in Big mode on a dark purple background, projector-shaped. The period name Period 2 and a very large 35:00 fill the screen, with min : sec beneath. Below the digits, a full-width row of rounded blocks with dashes between them shows the day: one filled block, one partly filled in orange, five empty. A caption reads 2 of 7 · 5h 00m until dismissal, and a footer shows 9:05, Next: Passing at 10:05, and 10:05. A small Exit big mode pill sits at the bottom."
+  width={1920}
+  height={1080}
+/>
+
+## Why is restored code new code?
 
 The original version of BellTab was plain HTML and JavaScript, built in a day
 to see the wiring before a framework hid it. When I ported it to Next.js, the
@@ -76,6 +93,13 @@ list, with progress through the day - did not. No phase in the roadmap named
 it, so nothing rebuilt it, and eventually its leftover CSS and formatters were
 deleted as dead code. That was the honest state until someone asked where it
 went.
+
+<Image
+  src="/log/belltab-day-view.png"
+  alt="BellTab's Day view: a heading Day progress with 2 of 7 · 5h 00m until dismissal beside it, a progress bar about a quarter full, a disclosure reading 2 earlier periods, and a list of periods. The running row, Period 2 at 9:05, is bold with 35m 00s on the right and its own progress track beneath. The rows after it - Passing 5m, Period 3 55m, A Lunch 30m, Period 4 55m, Passing 5m, Period 5 55m, Passing 5m, Period 6 55m - show each period's start time, name and length. Now, Day and Big mode buttons sit at the bottom with Day selected."
+  width={1216}
+  height={1696}
+/>
 
 Bringing it back was mostly `git show`. The engine functions and their tests
 came back verbatim and passed. The CSS came back verbatim and failed the axe
@@ -90,7 +114,7 @@ selector list pulled in three extra selectors I already had elsewhere. Same
 lesson. Old code carries its old assumptions, and the comments are the least
 reliable part - they are claims, and the claim outlives the check.
 
-## A stub that succeeds immediately proves nothing
+## What does a stub that succeeds immediately prove?
 
 Two of the day's real bugs came from the same shape. The screen wake lock got
 a "retry on the next tap" for when battery saver turns off, and the retry
@@ -108,7 +132,7 @@ change too, to model the lifecycle they had been hiding. One test now
 registers the real worker on real Chrome and asserts it active, which is the
 only test that proves the model.
 
-## What it is now
+## What is it now?
 
 Live at `/bell`, installable, with a chime and a notification that are honest
 about only working while the tab is open. Around 440 unit tests over the pure
