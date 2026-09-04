@@ -80,13 +80,22 @@ Six.
   which re-runs on every navigation — including the reload in the test named
   "preferences survive a reload". It passed on a build where they did not.
 - Three "engine failures" were the test's arithmetic, not the engine's.
-- `element?.textContent !== null` is always true when the element is
-  missing. That test could not fail for the reason it printed.
+- A ported test could not fail for the reason it printed. Optional chaining
+  beside a null check is a bug pattern, not an idiom:
+
+  ```ts
+  // always true when #period-name is missing
+  expect(document.querySelector("#period-name")?.textContent !== null).toBe(true);
+  ```
+
 - `clock.install` keeps time moving; only `pauseAt` stops it. Two flaky tests
   were the countdown ticking once between arrange and assert.
-- The fake time was `new Date("2026-09-02T10:20")`, which parses in the
-  runner's timezone. Every test started in a different period on GitHub's
-  UTC runners.
+- The fake time parsed in the runner's timezone, so every test started in a
+  different period on GitHub's UTC runners:
+
+  ```ts
+  await page.clock.pauseAt(new Date("2026-09-02T10:20")); // whose 10:20?
+  ```
 
 **Read a green test the way you read a red one.** Ask what would have to be
 true for it to pass, then break the code on purpose and watch it fail for the
@@ -146,6 +155,13 @@ separators marked every boundary instead of every change of kind.
 what they meant, not whether it matches the ticket.
 
 ## Where did the plan and the code disagree?
+
+<Image
+  src="/log/belltab-big-mode.png"
+  alt="BellTab's Big mode filling a 1920 by 1080 screen: the period name and the countdown digits at projector size on a dark background."
+  width={1920}
+  height={1080}
+/>
 
 Big mode — the projector view — was never in the plan's Phase 6. It was
 built because the case was obvious in the room, and the plan was amended
