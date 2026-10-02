@@ -1,0 +1,131 @@
+---
+title: The solver said no 6×6 was easy
+date: 2026-10-02
+summary: Building Skyscrapers, Puzzle Lab's fifth puzzle type, the generator could not produce an easy or medium 6×6 at all — and the fix was not in the generator.
+project: puzzles
+---
+
+import Image from 'next/image'
+
+Skyscrapers is the last puzzle type on Puzzle Lab's list. A Latin square — every row and
+column holds each height once — clued from *outside*: a number on an edge says how many
+towers you can see looking in from there, taller ones hiding shorter ones behind them. No
+givens, no boxes, just the edge numbers.
+
+<Image
+  src="/log/skyscrapers-board.png"
+  alt="A 6×6 Skyscrapers board on Puzzle Lab: an empty dark grid with a bold frame, and clue digits sitting outside it on all four sides — a 2 on the left of the first row, a 4 and a 3 above two columns, a 5 and a 4 on the right, a 4 and a 1 on the left, two 3s below. Most edge positions are blank, and the top-left cell is selected."
+  width={560}
+  height={500}
+/>
+
+I built it the way I built Kakuro a day earlier: a research pass, a plan with numbered slices,
+and the rule that the visual surface lands first on hand-baked puzzles while the engine goes
+in underneath. The exact solver, the human-style solver that grades difficulty by the hardest
+technique a puzzle needs, the generator — each its own small pull request, each reviewed
+before the next.
+
+It went to plan right up to the slice whose whole job is to find out whether the plan works.
+
+## The yield spike
+
+Before writing a generator I measure what one would produce. The design was Tatham's: fill a
+random Latin square, derive all 4N edge clues, then blank clues one at a time while the puzzle
+stays unique and the solver can still finish it at or below the tier you want. Remove toward
+"easy", accept when the grade is easy.
+
+Random squares are rarely unique even with all their clues — a third of 5×5 squares, one in
+twelve at 6×6, not one of the 7×7s I tried — so there is a repair step first (swap a 2×2
+sub-square's corners, keep it if the solution count does not rise). That part behaved. The
+tier-bounded removal did not:
+
+| target tier at 6×6 | easy | medium | hard | expert | extreme |
+|---|---|---|---|---|---|
+| puzzles landing exactly there | **0%** | **0%** | 85% | 10% | 73% |
+
+Forty attempts per tier, zero easy, zero medium. Every attempt aimed at easy landed on hard
+or extreme instead.
+
+## Removal only goes up
+
+The thing I had not thought through: blanking a clue can only make a puzzle *harder*. So the
+grade of the fully clued square — every one of its 24 numbers showing — is a floor, and
+removal can never reach a tier below it. I measured the floor directly, 300 unique squares with
+all their clues:
+
+| tier of the all-clue 6×6 | easy | medium | hard | expert | extreme | beyond the ladder |
+|---|---|---|---|---|---|---|
+| squares of 300 | 1 | 1 | **273** | 2 | 20 | 3 |
+
+Ninety-one percent of random 6×6 squares graded **hard before a single clue came off**.
+That cannot be right. Published easy Skyscrapers are fully or nearly fully clued and
+beginners solve them. Whatever a beginner does with a fully clued line, my ladder was calling
+tier 3.
+
+## What a beginner actually does
+
+The ladder's tier 3 held a technique I had called *line filtering*: take one row, enumerate
+every arrangement of heights that satisfies its two clues, and strike any height no
+arrangement allows. It is the catch-all — Tatham's "hard" solver does exactly this — so I had
+filed it as hard.
+
+But "enumerate every arrangement" covers two very different amounts of work. I instrumented
+the solver to record, at each line-filter step, how many arrangements of that line were still
+possible when it fired:
+
+| arrangements the scan had to consider | 1 | 2 | 3 | 4 | 5 | 6 | 7–12 | 13–24 | more |
+|---|---|---|---|---|---|---|---|---|---|
+| line-filter steps on all-clue 5×5 squares (857) | 310 | 178 | 219 | 46 | 46 | 15 | 41 | 2 | 0 |
+| on all-clue 6×6 squares (1,860) | 245 | 167 | 261 | 160 | 118 | 227 | 391 | 164 | 127 |
+
+A third of the steps a 5×5 needed were scans of exactly **one** arrangement, and most of the
+rest of two or three — "a 1 facing a 2 on this four-cell row: the 4 goes first, the 3 last, and
+only two orders remain." That is the first move every guide teaches. It is not
+a hard technique. The ladder had one word for a one-arrangement glance and a sixty-arrangement
+search, and graded both as the search.
+
+## The fix was two numbers
+
+The scan is now three techniques, graded by how many arrangements it had to look through:
+up to three is tier 1, up to twelve is tier 2, more is the old tier 3. Nothing about the
+puzzles changed. Their grades did:
+
+| 6×6, target tier | easy | medium | hard | expert | extreme |
+|---|---|---|---|---|---|
+| before the re-tier | 0% | 0% | 85% | 10% | 73% |
+| after | **28%** | **85%** | 58% | 15% | 53% |
+
+The all-clue floor at 6×6 went from 91% hard to 25% easy and 61% medium, and the hand-made
+5×5 that had carried every UI slice — graded *hard* by the old ladder — turned out to be easy.
+
+The cuts are provisional and the tier calibration slice will refit them against the scorer.
+But the lesson is older than the numbers. A difficulty classifier is a model of a person. When
+a technique is a catch-all, the tier has to come from the size of the work, not the name of
+the rule.
+
+## Two smaller things the spike caught
+
+**The 7×7 repair climb was failing half the time**, and the plain reading was "7×7 is
+marginal". It was not. A random 7×7 starts with sixty or more solutions, and sixty was also
+the cap on the solution count the climb minimises, so every swap read "60 → 60" and the climb
+wandered. Restarting from a fresh square after forty fruitless swaps, with the cap lowered to
+twenty, brought every attempt home in a median of 178 milliseconds. When a hill-climb stalls, check whether its objective is
+flat before deciding the hill is steep.
+
+**And the daily's standard board is not 9×9 any more.** Every type until now had a 9×9
+standard. The only Skyscrapers size that offers all five tiers — the 5×5 tops out at hard, the
+7×7 has no easy — is the 6×6, so that is its standard slot. "A board is a mini if it is
+smaller than 9×9" was never written down as a rule, but four places had quietly assumed it,
+and the type-checker could not find any of them. Grep did.
+
+## Where it landed
+
+Skyscrapers ships at 5×5, 6×6 and 7×7, every puzzle generated fresh at exactly the tier you
+pick, graded by the same solver that powers the Hint button. The whole offered table
+generates in under a second per cell — 6×6 easy through hard in 30–60 milliseconds — and a
+soundness fuzz over 1,500 generated puzzles found no placement the solver got wrong. It joins
+the daily as the fifth type, so a day is now eight boards and every difficulty is played every
+day.
+
+Twelve pull requests in two days, with a review on each. The one that mattered most was the
+one with no code in it.
