@@ -13,11 +13,14 @@ towers you can see looking in from there, taller ones hiding shorter ones behind
 givens, no boxes, just the edge numbers.
 
 <Image
-  src="/log/skyscrapers-board.png"
-  alt="A 6×6 Skyscrapers board on Puzzle Lab: an empty dark grid with a bold frame, and clue digits sitting outside it on all four sides — a 2 on the left of the first row, a 4 and a 3 above two columns, a 5 and a 4 on the right, a 4 and a 1 on the left, two 3s below. Most edge positions are blank, and the top-left cell is selected."
+  src="/log/skyscrapers-hints.gif"
+  alt="An animation of a 5×5 Skyscrapers board on Puzzle Lab being filled one hint at a time. Clue digits sit outside the dark grid on all four sides: a 3, a 1 and a 3 above, a 2 and a 4 below, a 2, a 1 and a 2 on the left, a 3 and a 1 on the right. Each frame places one more digit, highlighted in gold, and a Hint line under the numpad says why: clue 1 on column 3 from the top means only one tower is visible, so the tallest, 5, stands next to the clue; then 5 has only one place left in row 2; then only 4 fits at row 1, column 5; and so on through twelve placements."
   width={560}
-  height={500}
+  height={829}
 />
+
+That is the finished thing above, explaining itself one hint at a time — every placement
+named by the technique that found it. The grading those names feed is what this post is about.
 
 I built it the way I built Kakuro a day earlier: a research pass, a plan with numbered slices,
 and the rule that the visual surface lands first on hand-baked puzzles while the engine goes
@@ -73,10 +76,12 @@ But "enumerate every arrangement" covers two very different amounts of work. I i
 the solver to record, at each line-filter step, how many arrangements of that line were still
 possible when it fired:
 
-| arrangements the scan had to consider | 1 | 2 | 3 | 4 | 5 | 6 | 7–12 | 13–24 | more |
-|---|---|---|---|---|---|---|---|---|---|
-| line-filter steps on all-clue 5×5 squares (857) | 310 | 178 | 219 | 46 | 46 | 15 | 41 | 2 | 0 |
-| on all-clue 6×6 squares (1,860) | 245 | 167 | 261 | 160 | 118 | 227 | 391 | 164 | 127 |
+<Image
+  src="/log/skyscrapers-line-scan-histogram.png"
+  alt="A bar chart titled How much work was the line scan. For each count of arrangements still possible when the scan fired — 1, 2, 3, 4, 5, 6, 7 to 12, 13 to 24, and 25 or more — two bars show how many scans fell there: orange for 5×5, 857 scans over 300 squares, and purple for 6×6, 1,860 scans over 200 squares. The 5×5 bars are 310, 178, 219, 46, 46, 15, 41, 2 and 0. The 6×6 bars are 245, 167, 261, 160, 118, 227, 391, 164 and 127. Dashed lines split the chart into three shaded bands labelled tier 1, up to 3 arrangements; tier 2, up to 12; and tier 3, more than 12. A caption reads: a third of the 5×5 scans looked at one arrangement; the old ladder graded that the same as a 60-arrangement search, hard."
+  width={1800}
+  height={980}
+/>
 
 A third of the steps a 5×5 needed were scans of exactly **one** arrangement, and most of the
 rest of two or three — "a 1 facing a 2 on this four-cell row: the 4 goes first, the 3 last, and
@@ -95,6 +100,13 @@ puzzles changed. Their grades did:
 | before the re-tier | 0% | 0% | 85% | 10% | 73% |
 | after | **28%** | **85%** | 58% | 15% | 53% |
 
+<Image
+  src="/log/skyscrapers-floor-before-after.png"
+  alt="Two stacked horizontal bars titled Same 300 squares, graded twice, each spanning the 300 random 6×6 Latin squares graded with all 24 clues showing. Before, with a flat tier-3 line filter: a thin sliver of easy and medium, then hard filling 91 percent of the bar, then a small expert slice and extreme at 7 percent. After, with the scan graded by arrangements considered: easy 25 percent, medium 61 percent, a thin hard slice, a thin expert slice, and extreme 9 percent. A caption reads: before, 273 of 300 graded hard before a single clue came off; after, 1 in 4 easy, 3 in 5 medium; not one puzzle changed."
+  width={1800}
+  height={760}
+/>
+
 The all-clue floor at 6×6 went from 91% hard to 25% easy and 61% medium, and the hand-made
 5×5 that had carried every UI slice — graded *hard* by the old ladder — turned out to be easy.
 
@@ -109,8 +121,8 @@ the rule.
 marginal". It was not. A random 7×7 starts with sixty or more solutions, and sixty was also
 the cap on the solution count the climb minimises, so every swap read "60 → 60" and the climb
 wandered. Restarting from a fresh square after forty fruitless swaps, with the cap lowered to
-twenty, brought every attempt home in a median of 178 milliseconds. When a hill-climb stalls, check whether its objective is
-flat before deciding the hill is steep.
+twenty, brought every attempt home in a median of 178 milliseconds. When a hill-climb stalls,
+check whether its objective is flat before deciding the hill is steep.
 
 **And the daily's standard board is not 9×9 any more.** Every type until now had a 9×9
 standard. The only Skyscrapers size that offers all five tiers — the 5×5 tops out at hard, the
@@ -120,8 +132,8 @@ and the type-checker could not find any of them. Grep did.
 
 ## Where it landed
 
-Skyscrapers ships at 5×5, 6×6 and 7×7, every puzzle generated fresh at exactly the tier you
-pick, graded by the same solver that powers the Hint button. The whole offered table
+Skyscrapers [ships](/puzzles/play?variant=skyscrapers) at 5×5, 6×6 and 7×7, every puzzle
+generated fresh at exactly the tier you pick, graded by the same solver that powers the Hint button. The whole offered table
 generates in under a second per cell — 6×6 easy through hard in 30–60 milliseconds — and a
 soundness fuzz over 1,500 generated puzzles found no placement the solver got wrong. It joins
 the daily as the fifth type, so a day is now eight boards and every difficulty is played every
@@ -129,3 +141,6 @@ day.
 
 Twelve pull requests in two days, with a review on each. The one that mattered most was the
 one with no code in it.
+
+The cuts at three and twelve are mine, from the histogram. If you set Skyscrapers for people
+and would draw the easy/medium line somewhere else, I would like to know where, and why.
